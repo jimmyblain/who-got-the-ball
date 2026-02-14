@@ -1,0 +1,77 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Playful, warm color palette */
+    --background: 40 33% 98%;
+    --foreground: 240 10% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 15%;
+    --primary: 262 60% 55%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 40 40% 94%;
+    --secondary-foreground: 240 10% 20%;
+    --muted: 40 20% 94%;
+    --muted-foreground: 240 5% 46%;
+    --accent: 174 60% 45%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 40 15% 88%;
+    --input: 40 15% 88%;
+    --ring: 262 60% 55%;
+    --radius: 0.75rem;
+  }
+  .dark {
+    --background: 240 10% 8%;
+    --foreground: 40 20% 95%;
+    --card: 240 10% 12%;
+    --card-foreground: 40 20% 95%;
+    --popover: 240 10% 12%;
+    --popover-foreground: 40 20% 95%;
+    --primary: 262 60% 65%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 8% 18%;
+    --secondary-foreground: 40 20% 90%;
+    --muted: 240 8% 18%;
+    --muted-foreground: 40 10% 55%;
+    --accent: 174 55% 50%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 62% 40%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 8% 20%;
+    --input: 240 8% 20%;
+    --ring: 262 60% 65%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Playful ball bobbing animation */
+@keyframes bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+.animate-bob {
+  animation: bob 2s ease-in-out infinite;
+}
+
+/* Pulsing border for conflicts */
+@keyframes pulse-border {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+  50% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+}
+.animate-pulse-border {
+  animation: pulse-border 2s ease-in-out infinite;
+}
