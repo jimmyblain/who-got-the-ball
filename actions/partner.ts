@@ -3,6 +3,14 @@
 /**
  * Server Actions for the partner system.
  * Partners are two users who link their accounts to compare answers.
+ *
+ * IMPORTANT: Both linkPartner and unlinkPartner use SECURITY DEFINER
+ * SQL functions (via supabase.rpc()) instead of direct table updates.
+ * Why? Because Row Level Security (RLS) only lets you update YOUR OWN
+ * profile row. But linking/unlinking partners requires updating BOTH
+ * users' profiles. SECURITY DEFINER functions run with elevated
+ * privileges, bypassing RLS — like a trusted admin doing the update
+ * on behalf of the user.
  */
 
 import { createClient } from "@/lib/supabase/server";
@@ -10,112 +18,63 @@ import { revalidatePath } from "next/cache";
 
 /**
  * Link the current user with another user using their invite code.
- * This is a two-way link: both users get each other as their partner.
+ * This calls the `link_partners` SQL function which handles both sides
+ * of the link atomically (either both succeed or neither does).
  */
 export async function linkPartner(inviteCode: string) {
   const supabase = await createClient();
 
+  // Make sure the user is logged in
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
 
-  // Look up who this invite code belongs to
-  const { data: partnerProfile, error: lookupError } = await supabase
-    .from("profiles")
-    .select("id, display_name, partner_id")
-    .eq("invite_code", inviteCode)
-    .single();
+  // Call the SECURITY DEFINER function that links both profiles.
+  // This function validates the invite code, checks neither user is
+  // already partnered, and updates both profiles' partner_id fields.
+  const { data, error } = await supabase.rpc("link_partners", {
+    invite_code_input: inviteCode,
+  });
 
-  if (lookupError || !partnerProfile) {
-    return { error: "Invalid invite code. Please check and try again." };
-  }
+  // The function returns a JSON object like:
+  // { success: true, partner_name: "Alice" } or { error: "some message" }
+  if (error) return { error: error.message };
 
-  // Can't partner with yourself!
-  if (partnerProfile.id === user.id) {
-    return { error: "You can't partner with yourself!" };
-  }
+  // Check for application-level errors returned by the function
+  if (data?.error) return { error: data.error };
 
-  // Check if the other person already has a partner
-  if (partnerProfile.partner_id) {
-    return { error: "This person is already partnered with someone else." };
-  }
-
-  // Check if you already have a partner
-  const { data: myProfile } = await supabase
-    .from("profiles")
-    .select("partner_id")
-    .eq("id", user.id)
-    .single();
-
-  if (myProfile?.partner_id) {
-    return { error: "You already have a partner. Unlink first to partner with someone new." };
-  }
-
-  // Link both profiles to each other (two-way link)
-  const { error: updateError1 } = await supabase
-    .from("profiles")
-    .update({ partner_id: partnerProfile.id })
-    .eq("id", user.id);
-
-  if (updateError1) return { error: updateError1.message };
-
-  const { error: updateError2 } = await supabase
-    .from("profiles")
-    .update({ partner_id: user.id })
-    .eq("id", partnerProfile.id);
-
-  if (updateError2) return { error: updateError2.message };
-
+  // Refresh the cached data on these pages so the UI updates immediately
   revalidatePath("/dashboard");
   revalidatePath("/partner");
 
-  return { success: true, partnerName: partnerProfile.display_name };
+  return { success: true, partnerName: data?.partner_name };
 }
 
 /**
  * Unlink the current user from their partner.
- * Both users lose their partner connection.
+ * This calls the `unlink_partners` SQL function which clears both
+ * users' partner_id and cancels any pending transfers between them.
  */
 export async function unlinkPartner() {
   const supabase = await createClient();
 
+  // Make sure the user is logged in
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
 
-  // Get current partner
-  const { data: myProfile } = await supabase
-    .from("profiles")
-    .select("partner_id")
-    .eq("id", user.id)
-    .single();
+  // Call the SECURITY DEFINER function that unlinks both profiles.
+  // This function also cancels any pending transfers between the two users.
+  const { data, error } = await supabase.rpc("unlink_partners");
 
-  if (!myProfile?.partner_id) {
-    return { error: "You don't have a partner to unlink." };
-  }
+  if (error) return { error: error.message };
 
-  // Remove partner link from both profiles
-  await supabase
-    .from("profiles")
-    .update({ partner_id: null })
-    .eq("id", user.id);
+  // Check for application-level errors returned by the function
+  if (data?.error) return { error: data.error };
 
-  await supabase
-    .from("profiles")
-    .update({ partner_id: null })
-    .eq("id", myProfile.partner_id);
-
-  // Cancel all pending transfers between them
-  await supabase
-    .from("transfers")
-    .update({ status: "declined", updated_at: new Date().toISOString() })
-    .eq("status", "pending")
-    .or(
-      `and(from_user_id.eq.${user.id},to_user_id.eq.${myProfile.partner_id}),and(from_user_id.eq.${myProfile.partner_id},to_user_id.eq.${user.id})`
-    );
-
+  // Refresh the cached data on these pages so the UI updates immediately
   revalidatePath("/dashboard");
   revalidatePath("/partner");
 

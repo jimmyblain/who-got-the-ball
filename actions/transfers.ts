@@ -67,54 +67,32 @@ export async function requestTransfer(
 /**
  * Accept a transfer — take on the responsibility your partner is passing to you.
  * This automatically updates both users' answers.
+ *
+ * Uses a SECURITY DEFINER database function (accept_transfer) so that
+ * both users' answers can be updated in one atomic operation.
+ * Without this, RLS would block the receiver from updating the sender's answer
+ * (because RLS says "you can only update YOUR OWN answers").
  */
 export async function acceptTransfer(transferId: string) {
   const supabase = await createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { error: "Not authenticated" };
+  // Call the database function that handles everything:
+  // - Validates the transfer (exists, pending, belongs to current user)
+  // - Marks it as accepted
+  // - Updates BOTH users' answers (sender → "partner", receiver → "mine")
+  // The function runs as SECURITY DEFINER so it bypasses RLS for the answer updates.
+  const { data, error } = await supabase.rpc("accept_transfer", {
+    transfer_id_input: transferId,
+  });
 
-  // Get the transfer details
-  const { data: transfer, error: fetchError } = await supabase
-    .from("transfers")
-    .select("*")
-    .eq("id", transferId)
-    .single();
+  // Handle database-level errors (connection issues, etc.)
+  if (error) return { error: error.message };
 
-  if (fetchError || !transfer) return { error: "Transfer not found" };
-  if (transfer.to_user_id !== user.id) return { error: "This transfer isn't for you" };
-  if (transfer.status !== "pending") return { error: "This transfer is no longer pending" };
+  // Handle application-level errors returned by the function
+  // (e.g., "Transfer not found", "This transfer isn't for you")
+  if (data?.error) return { error: data.error };
 
-  // Update the transfer status to accepted
-  await supabase
-    .from("transfers")
-    .update({ status: "accepted", updated_at: new Date().toISOString() })
-    .eq("id", transferId);
-
-  // Update the sender's answer: they no longer own this ball → it's now their partner's
-  await supabase.from("answers").upsert(
-    {
-      user_id: transfer.from_user_id,
-      question_id: transfer.question_id,
-      answer: "partner",
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "user_id,question_id" }
-  );
-
-  // Update the receiver's answer: they now own this ball
-  await supabase.from("answers").upsert(
-    {
-      user_id: transfer.to_user_id,
-      question_id: transfer.question_id,
-      answer: "mine",
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "user_id,question_id" }
-  );
-
+  // Refresh the pages so they show the updated data
   revalidatePath("/transfers");
   revalidatePath("/dashboard");
 

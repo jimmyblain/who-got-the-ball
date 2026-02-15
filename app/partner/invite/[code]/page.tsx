@@ -3,6 +3,12 @@
 /**
  * Invite Accept Page — shown when someone opens a partner invite link.
  *
+ * IMPORTANT: This page lives OUTSIDE the (app) route group on purpose!
+ * The (app) layout requires authentication and redirects to login if not
+ * logged in. But we want unauthenticated users to see this page so they
+ * can sign up. By placing it here (app/partner/invite/[code]/), it uses
+ * the root layout instead of the auth-guarding (app) layout.
+ *
  * The [code] in the URL is the partner's unique invite code.
  * This page handles two scenarios:
  *

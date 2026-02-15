@@ -109,7 +109,195 @@ returns uuid as $$
 $$ language sql security definer stable;
 
 -- --------------------------------------------------------
--- 8. ROW LEVEL SECURITY (RLS)
+-- 8. PARTNER LINKING FUNCTIONS (SECURITY DEFINER)
+-- These functions bypass RLS so they can update BOTH partners'
+-- profiles in one go. Without these, RLS would block you from
+-- updating your partner's row (because you can only update your own).
+-- --------------------------------------------------------
+
+/**
+ * link_partners(invite_code_input text) → jsonb
+ *
+ * Validates the invite code, checks neither user is already partnered,
+ * then sets partner_id on BOTH profiles (two-way link).
+ * Returns { success: true, partner_name: "..." } or { error: "..." }.
+ */
+create or replace function public.link_partners(invite_code_input text)
+returns jsonb as $$
+declare
+  -- The user calling this function
+  current_user_id uuid := auth.uid();
+  -- The partner we're linking to (looked up by invite code)
+  partner_record record;
+  -- The current user's existing partner_id (to check if already partnered)
+  current_partner_id uuid;
+begin
+  -- Safety check: must be logged in
+  if current_user_id is null then
+    return jsonb_build_object('error', 'Not authenticated');
+  end if;
+
+  -- Look up who owns this invite code
+  select id, display_name, partner_id
+    into partner_record
+    from public.profiles
+    where invite_code = invite_code_input;
+
+  -- If no match found, the invite code is wrong
+  if not found then
+    return jsonb_build_object('error', 'Invalid invite code. Please check and try again.');
+  end if;
+
+  -- Can't partner with yourself!
+  if partner_record.id = current_user_id then
+    return jsonb_build_object('error', 'You can''t partner with yourself!');
+  end if;
+
+  -- Check if the other person already has a partner
+  if partner_record.partner_id is not null then
+    return jsonb_build_object('error', 'This person is already partnered with someone else.');
+  end if;
+
+  -- Check if the current user already has a partner
+  select partner_id into current_partner_id
+    from public.profiles
+    where id = current_user_id;
+
+  if current_partner_id is not null then
+    return jsonb_build_object('error', 'You already have a partner. Unlink first to partner with someone new.');
+  end if;
+
+  -- All checks passed! Link both profiles to each other.
+  -- Because this function is SECURITY DEFINER, these updates bypass RLS.
+  update public.profiles set partner_id = partner_record.id where id = current_user_id;
+  update public.profiles set partner_id = current_user_id where id = partner_record.id;
+
+  return jsonb_build_object('success', true, 'partner_name', partner_record.display_name);
+end;
+$$ language plpgsql security definer;
+
+/**
+ * unlink_partners() → jsonb
+ *
+ * Clears partner_id on BOTH the current user and their partner.
+ * Also cancels any pending transfers between them.
+ * Returns { success: true } or { error: "..." }.
+ */
+create or replace function public.unlink_partners()
+returns jsonb as $$
+declare
+  current_user_id uuid := auth.uid();
+  partner_user_id uuid;
+begin
+  -- Safety check: must be logged in
+  if current_user_id is null then
+    return jsonb_build_object('error', 'Not authenticated');
+  end if;
+
+  -- Get the current user's partner
+  select partner_id into partner_user_id
+    from public.profiles
+    where id = current_user_id;
+
+  -- If no partner, nothing to unlink
+  if partner_user_id is null then
+    return jsonb_build_object('error', 'You don''t have a partner to unlink.');
+  end if;
+
+  -- Clear partner_id on both profiles
+  update public.profiles set partner_id = null where id = current_user_id;
+  update public.profiles set partner_id = null where id = partner_user_id;
+
+  -- Cancel any pending transfers between the two users
+  update public.transfers
+    set status = 'declined', updated_at = now()
+    where status = 'pending'
+      and (
+        (from_user_id = current_user_id and to_user_id = partner_user_id)
+        or (from_user_id = partner_user_id and to_user_id = current_user_id)
+      );
+
+  return jsonb_build_object('success', true);
+end;
+$$ language plpgsql security definer;
+
+-- --------------------------------------------------------
+-- 8b. ACCEPT TRANSFER FUNCTION (SECURITY DEFINER)
+-- Same pattern as link_partners: bypasses RLS so we can update
+-- BOTH users' answers when a transfer is accepted.
+-- Without this, RLS blocks the receiver from updating the sender's answer.
+-- --------------------------------------------------------
+
+/**
+ * accept_transfer(transfer_id_input uuid) → jsonb
+ *
+ * Called when the receiver accepts a "pass the ball" request.
+ * Validates the transfer, then in one atomic operation:
+ *   1. Marks the transfer as "accepted"
+ *   2. Sets the sender's answer to "partner" (they gave up the ball)
+ *   3. Sets the receiver's answer to "mine" (they took the ball)
+ * Returns { success: true } or { error: "..." }.
+ */
+create or replace function public.accept_transfer(transfer_id_input uuid)
+returns jsonb as $$
+declare
+  -- The user calling this function (the receiver)
+  current_user_id uuid := auth.uid();
+  -- The transfer record we're accepting
+  transfer_record record;
+begin
+  -- Safety check: must be logged in
+  if current_user_id is null then
+    return jsonb_build_object('error', 'Not authenticated');
+  end if;
+
+  -- Look up the transfer
+  select * into transfer_record
+    from public.transfers
+    where id = transfer_id_input;
+
+  -- Check the transfer exists
+  if not found then
+    return jsonb_build_object('error', 'Transfer not found');
+  end if;
+
+  -- Only the receiver can accept
+  if transfer_record.to_user_id != current_user_id then
+    return jsonb_build_object('error', 'This transfer isn''t for you');
+  end if;
+
+  -- Must still be pending
+  if transfer_record.status != 'pending' then
+    return jsonb_build_object('error', 'This transfer is no longer pending');
+  end if;
+
+  -- All checks passed! Do everything in one atomic operation.
+
+  -- 1. Mark the transfer as accepted
+  update public.transfers
+    set status = 'accepted', updated_at = now()
+    where id = transfer_id_input;
+
+  -- 2. Update the SENDER's answer to "partner" (they gave up the ball)
+  --    This is the line that would fail without SECURITY DEFINER,
+  --    because the current user (receiver) isn't the sender.
+  insert into public.answers (user_id, question_id, answer, updated_at)
+    values (transfer_record.from_user_id, transfer_record.question_id, 'partner', now())
+    on conflict (user_id, question_id)
+    do update set answer = 'partner', updated_at = now();
+
+  -- 3. Update the RECEIVER's answer to "mine" (they took the ball)
+  insert into public.answers (user_id, question_id, answer, updated_at)
+    values (current_user_id, transfer_record.question_id, 'mine', now())
+    on conflict (user_id, question_id)
+    do update set answer = 'mine', updated_at = now();
+
+  return jsonb_build_object('success', true);
+end;
+$$ language plpgsql security definer;
+
+-- --------------------------------------------------------
+-- 9. ROW LEVEL SECURITY (RLS)
 -- These policies ensure users can only see/edit their own data
 -- and their partner's data (when partnered).
 -- --------------------------------------------------------
