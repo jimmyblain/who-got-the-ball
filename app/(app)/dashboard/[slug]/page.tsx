@@ -85,9 +85,22 @@ export default async function CategoryDetailPage({
       (t) => t.question_id === q.id && t.status === "pending"
     );
 
-    // Conflict: both said "mine"
-    const has_conflict =
-      myAnswer?.answer === "mine" && partnerAnswer?.answer === "mine";
+    // Check if answers are mismatched (needs discussion).
+    // Agreement = both "shared", or mine+partner, or partner+mine.
+    // Everything else (including one-sided) = mismatch.
+    let has_conflict = false;
+    if (myAnswer?.answer && partnerAnswer?.answer) {
+      const mine = myAnswer.answer as AnswerValue;
+      const theirs = partnerAnswer.answer as AnswerValue;
+      const isAgreement =
+        (mine === "shared" && theirs === "shared") ||
+        (mine === "mine" && theirs === "partner") ||
+        (mine === "partner" && theirs === "mine");
+      has_conflict = !isAgreement;
+    } else if (myAnswer?.answer || partnerAnswer?.answer) {
+      // One person answered but not the other — flag it
+      has_conflict = true;
+    }
 
     return {
       ...q,

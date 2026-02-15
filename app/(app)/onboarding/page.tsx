@@ -1,226 +1,153 @@
 "use client";
 
 /**
- * Onboarding Page
- * This is the first thing users see after signing up.
- * It walks them through each category's questions one at a time.
+ * Onboarding Welcome Page
+ *
+ * This is the first thing new users see after signing up.
+ * Instead of forcing them through all 15 questions, we just explain
+ * how the app works and let them explore categories at their own pace
+ * from the dashboard.
  *
  * Flow:
- * 1. User sees a category header (e.g., "Finances")
- * 2. They answer 5 questions in that category
- * 3. They move to the next category
- * 4. After all categories, onboarding is marked complete → redirect to dashboard
+ * 1. User reads the welcome explanation
+ * 2. Clicks "Get Started"
+ * 3. We mark onboarding as complete in the database
+ * 4. They land on the dashboard where they can tap into any category
+ *
+ * After onboarding, we also check localStorage for a pending partner
+ * invite code (see Task 2) — if one exists, we redirect to that
+ * invite page so the partner link completes automatically.
  */
 
-import { useEffect, useState, useCallback } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
-import { QuestionCard } from "@/components/onboarding/question-card";
 import { completeOnboarding } from "@/actions/answers";
 import { Button } from "@/components/ui/button";
-import type { Category, Question, AnswerValue } from "@/lib/types";
-
-type CategoryWithQuestions = Category & {
-  questions: (Question & { answer?: AnswerValue })[];
-};
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const [categories, setCategories] = useState<CategoryWithQuestions[]>([]);
-  const [currentCategoryIndex, setCurrentCategoryIndex] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [finishing, setFinishing] = useState(false);
+  // Track whether the "Get Started" button has been clicked (shows a spinner)
+  const [loading, setLoading] = useState(false);
 
-  // Load categories, questions, and any existing answers
-  const loadData = useCallback(async () => {
-    const supabase = createClient();
+  /**
+   * When the user clicks "Get Started":
+   * 1. Mark onboarding complete in the database
+   * 2. Check if there's a pending partner invite code in localStorage
+   *    (this happens when someone opened an invite link before signing up)
+   * 3. Redirect to the invite page or the dashboard
+   */
+  const handleGetStarted = async () => {
+    setLoading(true);
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return;
+    // Tell the server to mark onboarding as done for this user
+    const result = await completeOnboarding();
 
-    // Fetch all categories sorted by sort_order
-    const { data: cats } = await supabase
-      .from("categories")
-      .select("*")
-      .order("sort_order");
+    if (result?.error) {
+      // If something went wrong, stop the spinner so they can try again
+      setLoading(false);
+      return;
+    }
 
-    // Fetch all questions sorted by sort_order
-    const { data: questions } = await supabase
-      .from("questions")
-      .select("*")
-      .order("sort_order");
-
-    // Fetch any existing answers (in case user left and came back)
-    const { data: answers } = await supabase
-      .from("answers")
-      .select("*")
-      .eq("user_id", user.id);
-
-    if (!cats || !questions) return;
-
-    // Group questions under their categories and attach existing answers
-    const categoriesWithQuestions: CategoryWithQuestions[] = cats.map((cat) => ({
-      ...cat,
-      questions: questions
-        .filter((q) => q.category_id === cat.id)
-        .map((q) => ({
-          ...q,
-          answer: answers?.find((a) => a.question_id === q.id)?.answer as
-            | AnswerValue
-            | undefined,
-        })),
-    }));
-
-    setCategories(categoriesWithQuestions);
-    setLoading(false);
-  }, []);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center space-y-4">
-          <div className="text-4xl animate-bob">🏀</div>
-          <p className="text-muted-foreground">Loading questions...</p>
-        </div>
-      </div>
-    );
-  }
-
-  const currentCategory = categories[currentCategoryIndex];
-  if (!currentCategory) return null;
-
-  // Callback when a QuestionCard saves an answer — update local state
-  // so the parent knows all questions are answered (enables "Next" button)
-  const handleQuestionAnswer = (questionId: string, answer: AnswerValue) => {
-    setCategories((prev) =>
-      prev.map((cat, i) =>
-        i === currentCategoryIndex
-          ? {
-              ...cat,
-              questions: cat.questions.map((q) =>
-                q.id === questionId ? { ...q, answer } : q
-              ),
-            }
-          : cat
-      )
-    );
-  };
-
-  // Check if all questions in the current category are answered
-  const allAnswered = currentCategory.questions.every((q) => q.answer);
-  const isLastCategory = currentCategoryIndex === categories.length - 1;
-
-  // Handle finishing onboarding
-  const handleFinish = async () => {
-    setFinishing(true);
-    await completeOnboarding();
-    router.push("/dashboard");
-  };
-
-  // Handle moving to next category
-  const handleNext = () => {
-    if (isLastCategory) {
-      handleFinish();
+    // Check if there's a pending partner invite code saved from before signup
+    // (see the invite page — it saves the code to localStorage for new users)
+    const pendingInviteCode = localStorage.getItem("pending_invite_code");
+    if (pendingInviteCode) {
+      // Clean up the stored code so it doesn't trigger again
+      localStorage.removeItem("pending_invite_code");
+      // Send them to the invite acceptance page
+      router.push(`/partner/invite/${pendingInviteCode}`);
     } else {
-      setCurrentCategoryIndex((prev) => prev + 1);
-      // Reload data to get fresh answers
-      loadData();
-      // Scroll to top
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      // No pending invite — just go to the dashboard
+      router.push("/dashboard");
     }
   };
 
   return (
     <div className="max-w-2xl mx-auto py-8">
-      {/* Progress indicator — shows which category you're on */}
-      <div className="flex gap-2 mb-8">
-        {categories.map((cat, i) => (
-          <div
-            key={cat.id}
-            className={`h-2 flex-1 rounded-full transition-all ${
-              i <= currentCategoryIndex ? "" : "bg-secondary"
-            }`}
-            style={
-              i <= currentCategoryIndex
-                ? { backgroundColor: cat.color }
-                : {}
-            }
-          />
-        ))}
-      </div>
-
-      {/* Category header */}
-      <div className="text-center mb-8">
-        <div
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-white font-semibold text-sm mb-4"
-          style={{ backgroundColor: currentCategory.color }}
-        >
-          {currentCategory.name}
-        </div>
-        <h1 className="text-2xl font-bold">
-          Let&apos;s talk about {currentCategory.name.toLowerCase()}
+      {/* Big welcome header */}
+      <div className="text-center mb-10">
+        <div className="text-6xl mb-4">🏀</div>
+        <h1 className="text-3xl font-bold mb-3">
+          Welcome to Who&apos;s Got The Ball?
         </h1>
-        <p className="text-muted-foreground mt-2">
-          For each question, choose who carries this ball in your relationship.
+        <p className="text-lg text-muted-foreground">
+          A simple tool to help you and your partner figure out who owns what
+          in your relationship.
         </p>
       </div>
 
-      {/* Question cards */}
-      <div className="space-y-4 mb-8">
-        {currentCategory.questions.map((question, i) => (
-          <QuestionCard
-            key={question.id}
-            questionId={question.id}
-            questionText={question.question_text}
-            currentAnswer={question.answer}
-            categoryColor={currentCategory.color}
-            questionNumber={i + 1}
-            totalQuestions={currentCategory.questions.length}
-            onAnswer={handleQuestionAnswer}
-          />
-        ))}
+      {/* Explanation cards */}
+      <div className="space-y-4 mb-10">
+        {/* Card 1: What is this app? */}
+        <div className="rounded-2xl border bg-card p-6 shadow-sm">
+          <h2 className="text-lg font-bold mb-2">How does it work?</h2>
+          <p className="text-muted-foreground">
+            You&apos;ll explore topics like <strong>finances</strong>,{" "}
+            <strong>household tasks</strong>, and{" "}
+            <strong>emotional responsibilities</strong>. For each one,
+            you&apos;ll answer questions about who &quot;holds the ball&quot;
+            — meaning who takes the lead on that responsibility.
+          </p>
+        </div>
+
+        {/* Card 2: The three answer types */}
+        <div className="rounded-2xl border bg-card p-6 shadow-sm">
+          <h2 className="text-lg font-bold mb-3">Three ways to answer</h2>
+          <div className="space-y-3">
+            {/* "My ball" explanation */}
+            <div className="flex items-start gap-3">
+              <span className="text-2xl">🙋</span>
+              <div>
+                <p className="font-medium">My ball</p>
+                <p className="text-sm text-muted-foreground">
+                  This is your responsibility — you take the lead on it.
+                </p>
+              </div>
+            </div>
+            {/* "Partner's ball" explanation */}
+            <div className="flex items-start gap-3">
+              <span className="text-2xl">🙋‍♂️</span>
+              <div>
+                <p className="font-medium">Partner&apos;s ball</p>
+                <p className="text-sm text-muted-foreground">
+                  Your partner takes the lead on this one.
+                </p>
+              </div>
+            </div>
+            {/* "We share" explanation */}
+            <div className="flex items-start gap-3">
+              <span className="text-2xl">🤝</span>
+              <div>
+                <p className="font-medium">We share this ball</p>
+                <p className="text-sm text-muted-foreground">
+                  You both share this responsibility equally.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Card 3: What happens next */}
+        <div className="rounded-2xl border bg-card p-6 shadow-sm">
+          <h2 className="text-lg font-bold mb-2">Go at your own pace</h2>
+          <p className="text-muted-foreground">
+            There&apos;s no rush! You can explore each category whenever
+            you&apos;re ready. Once your partner joins, you&apos;ll be
+            able to compare answers and see where you agree — or where
+            you might need to talk things through.
+          </p>
+        </div>
       </div>
 
-      {/* Navigation buttons */}
-      <div className="flex justify-between items-center">
-        {/* Back button */}
-        {currentCategoryIndex > 0 ? (
-          <Button
-            variant="ghost"
-            onClick={() => {
-              setCurrentCategoryIndex((prev) => prev - 1);
-              loadData();
-              window.scrollTo({ top: 0, behavior: "smooth" });
-            }}
-          >
-            ← Previous
-          </Button>
-        ) : (
-          <div /> // Empty div to maintain spacing
-        )}
-
-        {/* Next / Finish button */}
+      {/* Big "Get Started" button */}
+      <div className="text-center">
         <Button
-          onClick={handleNext}
-          disabled={!allAnswered || finishing}
-          style={
-            allAnswered
-              ? { backgroundColor: currentCategory.color }
-              : {}
-          }
-          className="min-w-[140px]"
+          onClick={handleGetStarted}
+          disabled={loading}
+          size="lg"
+          className="min-w-[200px] bg-gradient-to-r from-purple-500 to-teal-400 hover:from-purple-600 hover:to-teal-500 text-white"
         >
-          {finishing
-            ? "Finishing..."
-            : isLastCategory
-              ? "Finish & see results"
-              : `Next: ${categories[currentCategoryIndex + 1]?.name} →`}
+          {loading ? "Setting things up..." : "Get Started →"}
         </Button>
       </div>
     </div>

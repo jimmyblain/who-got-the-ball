@@ -75,17 +75,38 @@ export default async function DashboardPage() {
     const shared_count = catAnswers.filter((a) => a.answer === "shared").length;
     const unanswered_count = catQuestions.length - catAnswers.length;
 
-    // Count conflicts: both user and partner said "mine" for the same question
+    // Count discussion items: any mismatch between partners' answers.
+    // Agreement rules:
+    //   Both "shared" → agree
+    //   I say "mine" + partner says "partner" → agree (both say I own it)
+    //   I say "partner" + partner says "mine" → agree (both say they own it)
+    //   Everything else (including one-sided answers) → needs discussion
     let conflict_count = 0;
     if (hasPartner) {
-      catAnswers.forEach((myAnswer) => {
-        if (myAnswer.answer === "mine") {
-          const partnerAnswer = partnerAnswers.find(
-            (pa) => pa.question_id === myAnswer.question_id
-          );
-          if (partnerAnswer?.answer === "mine") {
-            conflict_count++;
-          }
+      catQuestions.forEach((q) => {
+        const myAnswer = catAnswers.find((a) => a.question_id === q.id);
+        const partnerAnswer = partnerAnswers.find((pa) => pa.question_id === q.id);
+
+        // Skip if neither has answered
+        if (!myAnswer && !partnerAnswer) return;
+
+        // If only one has answered, that's a mismatch
+        if (!myAnswer || !partnerAnswer) {
+          conflict_count++;
+          return;
+        }
+
+        const mine = myAnswer.answer as AnswerValue;
+        const theirs = partnerAnswer.answer as AnswerValue;
+
+        // Check if they agree
+        const isAgreement =
+          (mine === "shared" && theirs === "shared") ||
+          (mine === "mine" && theirs === "partner") ||
+          (mine === "partner" && theirs === "mine");
+
+        if (!isAgreement) {
+          conflict_count++;
         }
       });
     }

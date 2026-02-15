@@ -151,11 +151,11 @@ export function BallCard({ question, categoryColor, hasPartner }: BallCardProps)
         </div>
       )}
 
-      {/* Conflict warning */}
+      {/* Mismatch warning — answers don't align, worth discussing */}
       {question.has_conflict && (
-        <div className="mt-3 p-3 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800">
-          <p className="text-sm text-red-700 dark:text-red-400 font-medium">
-            Conflict! You both feel this is your responsibility. Time for a conversation?
+        <div className="mt-3 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
+          <p className="text-sm text-amber-700 dark:text-amber-400 font-medium">
+            Your answers don&apos;t match — this might be worth discussing together.
           </p>
         </div>
       )}

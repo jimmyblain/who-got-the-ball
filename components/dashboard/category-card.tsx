@@ -63,9 +63,10 @@ export function CategoryCard({ category, hasPartner }: CategoryCardProps) {
           </div>
 
           {/* Conflict indicator */}
+          {/* Badge showing how many items need discussion with partner */}
           {category.conflict_count > 0 && (
-            <span className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 text-xs font-semibold px-2 py-1 rounded-full animate-pulse-border">
-              {category.conflict_count} conflict{category.conflict_count > 1 ? "s" : ""}
+            <span className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-xs font-semibold px-2 py-1 rounded-full">
+              {category.conflict_count} to discuss
             </span>
           )}
         </div>

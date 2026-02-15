@@ -74,7 +74,7 @@ export default async function AppLayout({
                   href="/conflicts"
                   className="text-sm px-3 py-2 rounded-md hover:bg-secondary transition-colors"
                 >
-                  Conflicts
+                  Alignment
                 </Link>
 
                 <Link
