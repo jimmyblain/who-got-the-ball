@@ -40,17 +40,28 @@ export function SignUpForm({
     }
 
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/dashboard`,
+          // When the user clicks the confirmation link in their email, Supabase appends
+          // token_hash and type as query params to this URL. We point it at our
+          // /auth/confirm route so that route can exchange the token for a real session,
+          // then forward the user to /dashboard.
+          emailRedirectTo: `${window.location.origin}/auth/confirm?next=/dashboard`,
         },
       });
       if (error) throw error;
-      // Since email confirmation is off, the user is immediately logged in.
-      // Send them straight to the dashboard (proxy will redirect to onboarding if needed).
-      router.push("/dashboard");
+      // When email confirmation is ENABLED, Supabase returns session: null right after
+      // sign-up — the user isn't logged in yet, just registered. We send them to the
+      // "check your email" page to wait for the confirmation link.
+      // When email confirmation is DISABLED (e.g. in dev), a full session comes back
+      // immediately, so we can send them straight to the dashboard.
+      if (data.session) {
+        router.push("/dashboard"); // Already logged in — no confirmation needed
+      } else {
+        router.push("/auth/sign-up-success"); // Awaiting email confirmation
+      }
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "An error occurred");
     } finally {
