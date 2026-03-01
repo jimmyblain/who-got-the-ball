@@ -53,9 +53,13 @@ Five tables: `profiles`, `categories`, `questions`, `answers` (composite PK: `us
 
 ## Environment variables
 
-Two required in `.env.local` (see `.env.example`):
+Two required (see `.env.example`):
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+
+**Locally:** Set in `.env.local` (git-ignored).
+
+**Vercel:** Must be added manually in the Vercel dashboard under Project → Settings → Environment Variables. Vercel does NOT read `.env.local`. After adding or changing env vars, you must **redeploy** for changes to take effect.
 
 ## Conventions
 
@@ -67,4 +71,8 @@ Two required in `.env.local` (see `.env.example`):
 
 ## Deployment
 
-See `DEPLOYMENT.md` for a checklist of tasks to complete before and during deployment.
+**Hosted on Vercel** — connected to the GitHub repo, auto-deploys on push to `main`.
+
+- Vercel env vars must match your Supabase project settings (see Environment variables above)
+- When copy-pasting API keys into Vercel, double-check that the full key was captured — keys easily get clipped by a character
+- See `DEPLOYMENT.md` for a full checklist of tasks to complete before and during deployment
