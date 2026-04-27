@@ -4,12 +4,10 @@ import { ThemeSwitcher } from "@/components/theme-switcher";
 
 /**
  * Landing Page — the first thing visitors see.
- * Explains what the app does and encourages them to sign up.
  */
 export default function LandingPage() {
   return (
     <main className="min-h-screen flex flex-col">
-      {/* Header */}
       <nav className="w-full border-b">
         <div className="max-w-5xl mx-auto flex h-14 items-center justify-between px-4">
           <span className="font-bold text-lg bg-gradient-to-r from-purple-500 to-teal-400 bg-clip-text text-transparent">
@@ -27,10 +25,8 @@ export default function LandingPage() {
         </div>
       </nav>
 
-      {/* Hero section */}
       <div className="flex-1 flex flex-col items-center justify-center px-4 py-20">
         <div className="max-w-2xl text-center space-y-6">
-          {/* Animated balls */}
           <div className="flex justify-center gap-4 text-5xl">
             <span className="animate-bob" style={{ animationDelay: "0s" }}>
               🟡
@@ -44,22 +40,21 @@ export default function LandingPage() {
           </div>
 
           <h1 className="text-4xl sm:text-5xl font-bold tracking-tight">
-            Who&apos;s carrying{" "}
+            Ever feel like you have{" "}
             <span className="bg-gradient-to-r from-amber-500 via-teal-500 to-purple-500 bg-clip-text text-transparent">
-              which balls
+              all the responsibility
             </span>
-            ?
+            ,<br className="hidden sm:block" /> while the other person thinks they do too?
           </h1>
 
           <p className="text-lg text-muted-foreground max-w-lg mx-auto">
-            A playful way for couples to uncover who carries what in their
-            relationship. Answer questions, compare with your partner, spot
-            conflicts, and start meaningful conversations.
+            This exercise helps you and your partner figure out who&apos;s actually
+            holding the ball — and how to talk about it.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center pt-4">
             <Button asChild size="lg" className="text-base">
-              <Link href="/auth/sign-up">Get started — it&apos;s free</Link>
+              <Link href="/auth/sign-up">Get started</Link>
             </Button>
             <Button asChild variant="outline" size="lg" className="text-base">
               <Link href="/auth/login">I have an account</Link>
@@ -67,19 +62,18 @@ export default function LandingPage() {
           </div>
         </div>
 
-        {/* Feature cards */}
         <div className="grid sm:grid-cols-3 gap-6 mt-20 max-w-4xl w-full">
           <div className="rounded-2xl border bg-card p-6 text-center space-y-3">
             <div
               className="w-12 h-12 rounded-full mx-auto flex items-center justify-center text-2xl"
               style={{ backgroundColor: "#F59E0B20" }}
             >
-              🙋
+              💬
             </div>
-            <h3 className="font-semibold">Claim your balls</h3>
+            <h3 className="font-semibold">Name what&apos;s coming up</h3>
             <p className="text-sm text-muted-foreground">
-              Answer questions about finances, household, and emotional
-              responsibilities.
+              Pick from common patterns — arguing about the same thing,
+              feeling like you&apos;re carrying more — or describe your own.
             </p>
           </div>
 
@@ -88,12 +82,12 @@ export default function LandingPage() {
               className="w-12 h-12 rounded-full mx-auto flex items-center justify-center text-2xl"
               style={{ backgroundColor: "#14B8A620" }}
             >
-              🔍
+              👀
             </div>
-            <h3 className="font-semibold">Spot conflicts</h3>
+            <h3 className="font-semibold">See it side by side</h3>
             <p className="text-sm text-muted-foreground">
-              When you both say &quot;that&apos;s mine,&quot; the app flags it so
-              you can discuss.
+              Each of you answers in private. Then you compare and see
+              where you actually agree, disagree, or are dropping the ball.
             </p>
           </div>
 
@@ -102,18 +96,17 @@ export default function LandingPage() {
               className="w-12 h-12 rounded-full mx-auto flex items-center justify-center text-2xl"
               style={{ backgroundColor: "#A78BFA20" }}
             >
-              🤝
+              🚀
             </div>
-            <h3 className="font-semibold">Pass the ball</h3>
+            <h3 className="font-semibold">Walk away with one step</h3>
             <p className="text-sm text-muted-foreground">
-              Ready to let go of a responsibility? Pass it to your partner with
-              one click.
+              Pick a small action and a way to bring it up — then check
+              back in a few days to see how it&apos;s going.
             </p>
           </div>
         </div>
       </div>
 
-      {/* Footer */}
       <footer className="border-t py-6 text-center text-sm text-muted-foreground">
         <p>Who&apos;s Got The Ball? — Conversations that matter.</p>
       </footer>

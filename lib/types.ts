@@ -1,10 +1,7 @@
 /**
- * TypeScript types for our database tables.
- * These define the "shape" of our data — like a blueprint for each table.
- * TypeScript uses these to catch errors before the code even runs.
+ * TypeScript types matching the Supabase schema (v2: guided session).
  */
 
-// A user's profile — extends the built-in auth user
 export type Profile = {
   id: string;
   display_name: string | null;
@@ -14,66 +11,72 @@ export type Profile = {
   created_at: string;
 };
 
-// A category of questions (e.g., Finances, Household, Emotional)
 export type Category = {
   id: string;
   name: string;
   slug: string;
-  color: string;       // hex color like "#F59E0B"
-  icon: string;        // icon name like "wallet", "home", "heart"
+  description: string | null;
+  color: string;
+  icon: string;
   sort_order: number;
   created_at: string;
 };
 
-// A single question within a category
-export type Question = {
+export type Scenario = {
   id: string;
-  category_id: string;
-  question_text: string;
+  category_id: string | null;     // null = top-level scenario
+  scenario_text: string;
   sort_order: number;
   created_at: string;
 };
 
-// The three possible answers to any question
-export type AnswerValue = "mine" | "partner" | "shared";
+export type SessionStatus = "in_progress" | "completed";
 
-// A user's answer to a specific question
-export type Answer = {
+export type Session = {
+  id: string;
+  initiator_id: string;
+  partner_id: string;
+  top_scenario_id: string | null;
+  top_scenario_custom: string | null;
+  selected_category_ids: string[];
+  focal_category_id: string;
+  focal_scenario_id: string | null;
+  focal_scenario_custom: string | null;
+  status: SessionStatus;
+  created_at: string;
+  completed_at: string | null;
+};
+
+export type WhoHasBall = "me" | "you" | "both_dropped" | "not_sure";
+
+export type SessionResponse = {
+  session_id: string;
   user_id: string;
-  question_id: string;
-  answer: AnswerValue;
-  created_at: string;
-  updated_at: string;
+  who_has_ball: WhoHasBall;
+  why: string;                    // preset key OR 'custom'
+  why_custom: string | null;
+  expectation: string;            // preset key OR 'custom'
+  expectation_custom: string | null;
+  submitted_at: string;
 };
 
-// A "pass the ball" transfer request between partners
-export type TransferStatus = "pending" | "accepted" | "declined";
+export type SessionAction = {
+  session_id: string;
+  user_id: string;
+  action: string;                 // preset key OR 'custom'
+  action_custom: string | null;
+  language: string;               // preset key OR 'custom'
+  language_custom: string | null;
+  submitted_at: string;
+};
 
-export type Transfer = {
+export type CheckInStatus = "pending" | "dismissed" | "completed";
+
+export type CheckIn = {
   id: string;
-  from_user_id: string;
-  to_user_id: string;
-  question_id: string;
-  status: TransferStatus;
-  message: string | null;
+  session_id: string;
+  user_id: string;
+  scheduled_for: string;          // ISO date (YYYY-MM-DD)
+  status: CheckInStatus;
   created_at: string;
-  updated_at: string;
-};
-
-// Convenience type: a question with the user's answer attached
-export type QuestionWithAnswer = Question & {
-  answer?: AnswerValue;
-  partner_answer?: AnswerValue;
-  has_conflict?: boolean;
-  pending_transfer?: Transfer | null;
-};
-
-// Convenience type: a category with summary stats
-export type CategoryWithStats = Category & {
-  total_questions: number;
-  mine_count: number;
-  partner_count: number;
-  shared_count: number;
-  unanswered_count: number;
-  conflict_count: number;
 };

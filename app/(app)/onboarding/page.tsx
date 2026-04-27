@@ -21,7 +21,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { completeOnboarding } from "@/actions/answers";
+import { completeOnboarding } from "@/actions/onboarding";
 import { Button } from "@/components/ui/button";
 
 export default function OnboardingPage() {
