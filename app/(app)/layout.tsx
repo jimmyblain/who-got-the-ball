@@ -53,6 +53,13 @@ export default async function AppLayout({
               Partner
             </Link>
 
+            <Link
+              href="/onboarding"
+              className="text-sm px-3 py-2 rounded-md hover:bg-secondary transition-colors"
+            >
+              How it works
+            </Link>
+
             <ThemeSwitcher />
 
             <div className="flex items-center gap-2 ml-2">
