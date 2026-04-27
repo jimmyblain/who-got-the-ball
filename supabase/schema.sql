@@ -183,6 +183,24 @@ create trigger on_auth_user_created
   for each row execute procedure public.handle_new_user();
 
 -- --------------------------------------------------------
+-- 8b. BACKFILL PROFILES FOR EXISTING AUTH USERS
+-- The trigger above only fires on NEW signups. Re-running this script
+-- after dropping `public.profiles` would leave already-signed-up users
+-- without a profile row (and therefore no invite_code). This backfill
+-- creates a profile for any auth.user that doesn't already have one.
+-- Idempotent — safe to re-run.
+-- --------------------------------------------------------
+insert into public.profiles (id, display_name, invite_code)
+select
+  au.id,
+  coalesce(au.raw_user_meta_data->>'display_name', split_part(au.email, '@', 1)),
+  substr(md5(random()::text), 1, 8)
+from auth.users au
+where not exists (
+  select 1 from public.profiles p where p.id = au.id
+);
+
+-- --------------------------------------------------------
 -- 9. HELPER FUNCTION FOR RLS
 -- SECURITY DEFINER bypasses RLS so policies can subquery profiles
 -- without infinite recursion.
