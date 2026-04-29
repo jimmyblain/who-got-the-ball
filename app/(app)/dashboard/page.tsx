@@ -2,11 +2,12 @@ import { connection } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { CheckInBanner, type DueCheckIn } from "@/components/check-in-banner";
 import type { Session, Scenario } from "@/lib/types";
 
 /**
- * Placeholder home. The full home (history, check-in banner, etc.) lands in Phase 7.
- * For now: surfaces any in-progress sessions and a "Start a session" CTA.
+ * Placeholder home. The full home (history, etc.) lands in Phase 7.
+ * Surfaces due check-ins, in-progress sessions, and a "Start a session" CTA.
  */
 export default async function HomePage() {
   await connection();
@@ -23,18 +24,55 @@ export default async function HomePage() {
     .eq("id", user.id)
     .single();
 
-  const [{ data: sessions }, { data: scenarios }] = await Promise.all([
+  const today = new Date().toISOString().split("T")[0];
+
+  const [
+    { data: sessions },
+    { data: scenarios },
+    { data: dueCheckInRows },
+  ] = await Promise.all([
     supabase
       .from("sessions")
       .select("*")
       .eq("status", "in_progress")
       .order("created_at", { ascending: false })
       .returns<Session[]>(),
-    supabase.from("scenarios").select("id, scenario_text").returns<Pick<Scenario, "id" | "scenario_text">[]>(),
+    supabase
+      .from("scenarios")
+      .select("id, scenario_text")
+      .returns<Pick<Scenario, "id" | "scenario_text">[]>(),
+    supabase
+      .from("check_ins")
+      .select("id, session_id, scheduled_for, sessions(focal_scenario_id, focal_scenario_custom)")
+      .eq("user_id", user.id)
+      .eq("status", "pending")
+      .lte("scheduled_for", today)
+      .order("scheduled_for", { ascending: true }),
   ]);
 
-  const scenarioById = new Map(scenarios?.map((s) => [s.id, s.scenario_text]) ?? []);
+  const scenarioById = new Map(
+    scenarios?.map((s) => [s.id, s.scenario_text]) ?? [],
+  );
   const inProgress = sessions ?? [];
+
+  const dueCheckIns: DueCheckIn[] = (dueCheckInRows ?? []).map((row) => {
+    const sessionRel = row.sessions as
+      | { focal_scenario_id: string | null; focal_scenario_custom: string | null }
+      | { focal_scenario_id: string | null; focal_scenario_custom: string | null }[]
+      | null;
+    const sessionData = Array.isArray(sessionRel) ? sessionRel[0] : sessionRel;
+    const scenarioText =
+      sessionData?.focal_scenario_custom ??
+      (sessionData?.focal_scenario_id
+        ? scenarioById.get(sessionData.focal_scenario_id)
+        : null) ??
+      "Untitled session";
+    return {
+      id: row.id as string,
+      sessionId: row.session_id as string,
+      scenarioText,
+    };
+  });
 
   return (
     <div className="max-w-2xl mx-auto py-10 space-y-8">
@@ -61,6 +99,8 @@ export default async function HomePage() {
         </div>
       ) : (
         <>
+          <CheckInBanner checkIns={dueCheckIns} />
+
           {inProgress.length > 0 && (
             <div className="space-y-3">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">

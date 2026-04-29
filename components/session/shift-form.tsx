@@ -43,8 +43,7 @@ export function ShiftForm({
       if (result?.error) {
         setError(result.error);
       } else {
-        // Phase 6 will route this to /session/[id]/checkin.
-        router.push("/dashboard");
+        router.push(`/session/${sessionId}/checkin`);
       }
     });
   };

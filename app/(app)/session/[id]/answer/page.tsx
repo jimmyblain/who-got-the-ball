@@ -3,7 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { AnswerFlow } from "@/components/session/answer-flow";
-import type { Session, SessionResponse, Scenario } from "@/lib/types";
+import { resolveFocalScenarioText } from "@/lib/sessions";
+import type { Session, SessionResponse } from "@/lib/types";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -30,7 +31,7 @@ export default async function AnswerPage({ params }: Props) {
     notFound();
   }
 
-  const focalText = await resolveFocalText(supabase, session);
+  const focalText = await resolveFocalScenarioText(supabase, session);
 
   const { data: responses } = await supabase
     .from("session_responses")
@@ -59,20 +60,6 @@ export default async function AnswerPage({ params }: Props) {
       <AnswerFlow sessionId={sessionId} focalScenarioText={focalText} />
     </div>
   );
-}
-
-async function resolveFocalText(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  session: Session,
-): Promise<string> {
-  if (session.focal_scenario_custom) return session.focal_scenario_custom;
-  if (!session.focal_scenario_id) return "(unknown scenario)";
-  const { data: scenario } = await supabase
-    .from("scenarios")
-    .select("scenario_text")
-    .eq("id", session.focal_scenario_id)
-    .single<Pick<Scenario, "scenario_text">>();
-  return scenario?.scenario_text ?? "(unknown scenario)";
 }
 
 async function SubmittedView({
