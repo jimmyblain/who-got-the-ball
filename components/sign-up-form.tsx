@@ -20,6 +20,7 @@ export function SignUpForm({
   className,
   ...props
 }: React.ComponentPropsWithoutRef<"div">) {
+  const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [repeatPassword, setRepeatPassword] = useState("");
@@ -40,6 +41,7 @@ export function SignUpForm({
     }
 
     try {
+      const trimmedName = displayName.trim();
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -49,6 +51,8 @@ export function SignUpForm({
           // /auth/confirm route so that route can exchange the token for a real session,
           // then forward the user to /dashboard.
           emailRedirectTo: `${window.location.origin}/auth/confirm?next=/dashboard`,
+          // Captured by the handle_new_user DB trigger via raw_user_meta_data.
+          data: trimmedName ? { display_name: trimmedName } : undefined,
         },
       });
       if (error) throw error;
@@ -79,6 +83,16 @@ export function SignUpForm({
         <CardContent>
           <form onSubmit={handleSignUp}>
             <div className="flex flex-col gap-6">
+              <div className="grid gap-2">
+                <Label htmlFor="display-name">Your name</Label>
+                <Input
+                  id="display-name"
+                  type="text"
+                  placeholder="What should your partner see?"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                />
+              </div>
               <div className="grid gap-2">
                 <Label htmlFor="email">Email</Label>
                 <Input

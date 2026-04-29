@@ -3,11 +3,12 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { CheckInBanner, type DueCheckIn } from "@/components/check-in-banner";
+import { SessionHistory } from "@/components/home/session-history";
 import type { Session, Scenario } from "@/lib/types";
 
 /**
- * Placeholder home. The full home (history, etc.) lands in Phase 7.
- * Surfaces due check-ins, in-progress sessions, and a "Start a session" CTA.
+ * Home page after login.
+ * Shows: due check-ins → in-progress sessions → start a session CTA → past sessions.
  */
 export default async function HomePage() {
   await connection();
@@ -27,14 +28,13 @@ export default async function HomePage() {
   const today = new Date().toISOString().split("T")[0];
 
   const [
-    { data: sessions },
+    { data: allSessions },
     { data: scenarios },
     { data: dueCheckInRows },
   ] = await Promise.all([
     supabase
       .from("sessions")
       .select("*")
-      .eq("status", "in_progress")
       .order("created_at", { ascending: false })
       .returns<Session[]>(),
     supabase
@@ -53,7 +53,9 @@ export default async function HomePage() {
   const scenarioById = new Map(
     scenarios?.map((s) => [s.id, s.scenario_text]) ?? [],
   );
-  const inProgress = sessions ?? [];
+
+  const inProgress = (allSessions ?? []).filter((s) => s.status === "in_progress");
+  const completed = (allSessions ?? []).filter((s) => s.status === "completed");
 
   const dueCheckIns: DueCheckIn[] = (dueCheckInRows ?? []).map((row) => {
     const sessionRel = row.sessions as
@@ -143,6 +145,8 @@ export default async function HomePage() {
               Start a session →
             </Link>
           </div>
+
+          <SessionHistory sessions={completed} scenarioById={scenarioById} />
         </>
       )}
     </div>

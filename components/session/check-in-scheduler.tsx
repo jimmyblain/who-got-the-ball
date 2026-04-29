@@ -35,15 +35,14 @@ export function CheckInScheduler({ sessionId }: Props) {
         setError(result.error);
         setPickedDays(null);
       } else {
-        // Phase 7 will swap this to /session/[id]/done.
-        router.push("/dashboard");
+        router.push(`/session/${sessionId}/done`);
       }
     });
   };
 
   const skip = () => {
     if (isPending) return;
-    router.push("/dashboard");
+    router.push(`/session/${sessionId}/done`);
   };
 
   return (

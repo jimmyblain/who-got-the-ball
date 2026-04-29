@@ -63,9 +63,13 @@ export default async function AppLayout({
             <ThemeSwitcher />
 
             <div className="flex items-center gap-2 ml-2">
-              <span className="text-sm text-muted-foreground hidden sm:inline">
+              <Link
+                href="/settings"
+                className="text-sm text-muted-foreground hover:text-foreground hidden sm:inline"
+                title="Settings"
+              >
                 {profile?.display_name || user.email}
-              </span>
+              </Link>
               <LogoutButton />
             </div>
           </div>

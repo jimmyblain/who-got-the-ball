@@ -68,7 +68,7 @@ function CheckInRow({ item }: { item: DueCheckIn }) {
           Dismiss
         </Button>
         <Button size="sm" variant="ghost" asChild>
-          <Link href={`/session/${item.sessionId}/reveal`}>View session</Link>
+          <Link href={`/session/${item.sessionId}`}>View session</Link>
         </Button>
       </div>
     </div>
