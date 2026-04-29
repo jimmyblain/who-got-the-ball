@@ -2,6 +2,7 @@ import { connection } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import { RevealCard } from "@/components/session/reveal-card";
 import type { Session, SessionResponse, Scenario } from "@/lib/types";
 
@@ -69,12 +70,9 @@ export default async function RevealPage({ params }: Props) {
       />
 
       <div className="text-center pt-2">
-        <Link
-          href="/dashboard"
-          className="inline-block text-sm text-muted-foreground underline underline-offset-4"
-        >
-          Back to home
-        </Link>
+        <Button asChild size="lg">
+          <Link href={`/session/${sessionId}/pause`}>Continue →</Link>
+        </Button>
       </div>
     </div>
   );

@@ -33,6 +33,26 @@ export const EXPECTATION_OPTIONS = [
   { key: "meet_halfway", label: "Meet me halfway" },
 ] as const;
 
+export const ACTION_OPTIONS = [
+  { key: "bring_it_up_calmly", label: "Bring it up calmly" },
+  { key: "follow_through_small", label: "Follow through on something small" },
+  { key: "ask_instead_of_assume", label: "Ask instead of assume" },
+] as const;
+
+export const LANGUAGE_OPTIONS = [
+  { key: "want_to_handle_better", label: "I want to handle this better" },
+  { key: "different_approach", label: "Can we try a different approach?" },
+  { key: "realize_unclear", label: "I realize I haven't been clear" },
+] as const;
+
+/**
+ * Healthy ways to start the conversation, shown on the Discussion screen.
+ */
+export const HEALTHY_PHRASES = [
+  "I think I've been feeling like you were putting the ball on me, and I don't really know how to respond.",
+  "I think I've been waiting for you to take the ball on this, but I haven't clearly said that.",
+] as const;
+
 export const CUSTOM_KEY = "custom" as const;
 
 /**

@@ -124,3 +124,56 @@ export async function submitResponse(input: SubmitResponseInput) {
 
   return { success: true };
 }
+
+export type SubmitActionInput = {
+  sessionId: string;
+  action: string;          // preset key; CUSTOM_KEY-style not exposed in v1
+  language: string;
+};
+
+/**
+ * Persist the current user's "Make the shift" commitment (one action + one
+ * language phrase). When BOTH partners have committed, mark the session
+ * `completed` so it drops out of the in-progress list on the home page.
+ */
+export async function submitAction(input: SubmitActionInput) {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const { error: upsertError } = await supabase.from("session_actions").upsert(
+    {
+      session_id: input.sessionId,
+      user_id: user.id,
+      action: input.action,
+      action_custom: null,
+      language: input.language,
+      language_custom: null,
+      submitted_at: new Date().toISOString(),
+    },
+    { onConflict: "session_id,user_id" },
+  );
+
+  if (upsertError) return { error: upsertError.message };
+
+  // If both partners have now committed, mark the session completed.
+  const { count } = await supabase
+    .from("session_actions")
+    .select("*", { count: "exact", head: true })
+    .eq("session_id", input.sessionId);
+
+  if ((count ?? 0) >= 2) {
+    await supabase
+      .from("sessions")
+      .update({ status: "completed", completed_at: new Date().toISOString() })
+      .eq("id", input.sessionId);
+  }
+
+  revalidatePath(`/session/${input.sessionId}/shift`);
+  revalidatePath("/dashboard");
+
+  return { success: true };
+}
