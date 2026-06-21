@@ -7,8 +7,8 @@ Things to do before and during deployment of "Who's Got The Ball?"
 - [ ] **Enable email confirmation in Supabase**
   - In Supabase dashboard: **Authentication → Providers → Email** → enable "Confirm email"
   - In Supabase dashboard: **Authentication → URL Configuration** → set **Site URL** to your production URL (e.g. `https://yourdomain.com`)
-  - In the same URL Configuration page, add `/auth/confirm` to **Redirect URLs**
-  - In code: Update `components/sign-up-form.tsx` — change `emailRedirectTo` to `/auth/confirm` and redirect after signup to `/auth/sign-up-success` instead of `/dashboard`
+  - In the same URL Configuration page, add `https://yourdomain.com/auth/confirm*` to **Redirect URLs** (the trailing `*` allows the `?next=` query param the app appends; entries must be full URLs including scheme and host)
+  - No code change needed: `components/sign-up-form.tsx` already points `emailRedirectTo` at `/auth/confirm?next=/dashboard` and automatically sends users to `/auth/sign-up-success` when confirmation is pending (and straight to `/dashboard` when it's disabled)
 
 - [ ] **Set environment variables in hosting provider**
   - `NEXT_PUBLIC_SUPABASE_URL` — your Supabase project URL
