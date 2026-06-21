@@ -1,11 +1,8 @@
-import { connection } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { DiscussionTimer } from "@/components/session/discussion-timer";
 import { HEALTHY_PHRASES } from "@/lib/session-options";
-import type { Session } from "@/lib/types";
+import { loadOwnedSession } from "@/lib/sessions";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -16,25 +13,8 @@ type Props = {
  * and a "We talked" CTA into the make-the-shift step.
  */
 export default async function DiscussPage({ params }: Props) {
-  await connection();
   const { id: sessionId } = await params;
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/auth/login");
-
-  const { data: session } = await supabase
-    .from("sessions")
-    .select("initiator_id, partner_id")
-    .eq("id", sessionId)
-    .single<Pick<Session, "initiator_id" | "partner_id">>();
-
-  if (!session) notFound();
-  if (session.initiator_id !== user.id && session.partner_id !== user.id) {
-    notFound();
-  }
+  await loadOwnedSession(sessionId);
 
   return (
     <div className="max-w-2xl mx-auto py-12 space-y-8">

@@ -1,10 +1,11 @@
-import { connection } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { RevealCard } from "@/components/session/reveal-card";
-import { resolveFocalScenarioText } from "@/lib/sessions";
+import {
+  loadOwnedSession,
+  resolveFocalScenarioText,
+  resolveDisplayName,
+} from "@/lib/sessions";
 import {
   ACTION_OPTIONS,
   LANGUAGE_OPTIONS,
@@ -12,7 +13,6 @@ import {
   labelFor,
 } from "@/lib/session-options";
 import type {
-  Session,
   SessionResponse,
   SessionAction,
   CheckIn,
@@ -28,25 +28,8 @@ type Props = {
  * Reachable from the home page's past sessions list and from the check-in banner.
  */
 export default async function SessionSummaryPage({ params }: Props) {
-  await connection();
   const { id: sessionId } = await params;
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/auth/login");
-
-  const { data: session } = await supabase
-    .from("sessions")
-    .select("*")
-    .eq("id", sessionId)
-    .single<Session>();
-
-  if (!session) notFound();
-  if (session.initiator_id !== user.id && session.partner_id !== user.id) {
-    notFound();
-  }
+  const { supabase, user, session } = await loadOwnedSession(sessionId);
 
   const partnerId =
     session.initiator_id === user.id ? session.partner_id : session.initiator_id;
@@ -56,7 +39,6 @@ export default async function SessionSummaryPage({ params }: Props) {
     { data: responses },
     { data: actions },
     { data: checkIn },
-    viewerName,
     partnerName,
   ] = await Promise.all([
     resolveFocalScenarioText(supabase, session),
@@ -78,7 +60,6 @@ export default async function SessionSummaryPage({ params }: Props) {
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle<CheckIn>(),
-    resolveDisplayName(supabase, user.id),
     resolveDisplayName(supabase, partnerId),
   ]);
 
@@ -104,7 +85,6 @@ export default async function SessionSummaryPage({ params }: Props) {
           focalScenarioText={focalText}
           viewerResponse={myResponse}
           partnerResponse={partnerResponse}
-          viewerName={viewerName}
           partnerName={partnerName}
         />
       ) : (
@@ -255,14 +235,3 @@ function formatDate(value: string): string {
   });
 }
 
-async function resolveDisplayName(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  userId: string,
-): Promise<string> {
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("display_name")
-    .eq("id", userId)
-    .single();
-  return profile?.display_name ?? "Your partner";
-}

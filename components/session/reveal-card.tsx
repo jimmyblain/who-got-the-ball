@@ -13,7 +13,6 @@ type Props = {
   focalScenarioText: string;
   viewerResponse: SessionResponse;
   partnerResponse: SessionResponse;
-  viewerName: string;
   partnerName: string;
 };
 
@@ -29,7 +28,6 @@ export function RevealCard({
   focalScenarioText,
   viewerResponse,
   partnerResponse,
-  viewerName,
   partnerName,
 }: Props) {
   const signal = computeSignal(
@@ -53,14 +51,12 @@ export function RevealCard({
           label="You said"
           response={viewerResponse}
           responderIsViewer
-          viewerName={viewerName}
           partnerName={partnerName}
         />
         <ResponseColumn
           label={`${partnerName} said`}
           response={partnerResponse}
           responderIsViewer={false}
-          viewerName={viewerName}
           partnerName={partnerName}
         />
       </div>
@@ -72,13 +68,11 @@ function ResponseColumn({
   label,
   response,
   responderIsViewer,
-  viewerName,
   partnerName,
 }: {
   label: string;
   response: SessionResponse;
   responderIsViewer: boolean;
-  viewerName: string;
   partnerName: string;
 }) {
   return (
@@ -92,7 +86,6 @@ function ResponseColumn({
           definition={whoLabel(
             response.who_has_ball,
             responderIsViewer,
-            viewerName,
             partnerName,
           )}
         />
@@ -205,7 +198,6 @@ function computeSignal(viewerWho: WhoOption, partnerWho: WhoOption): Signal {
 function whoLabel(
   answer: WhoOption,
   responderIsViewer: boolean,
-  _viewerName: string,
   partnerName: string,
 ): string {
   if (answer === "both_dropped") return "We've both dropped it";

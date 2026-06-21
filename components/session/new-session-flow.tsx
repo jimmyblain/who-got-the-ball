@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { MultiChoicePrompt, type MultiChoiceSelection } from "./multi-choice-prompt";
 import { CategoryMultiSelect } from "./category-multiselect";
 import { createSession } from "@/actions/sessions";
-import { CUSTOM_KEY, CATEGORY_SCENARIO_PROMPTS } from "@/lib/session-options";
+import { CUSTOM_KEY } from "@/lib/session-options";
 import type { Category, Scenario } from "@/lib/types";
 
 type Props = {
@@ -91,7 +91,7 @@ export function NewSessionFlow({
       {step === "focal" && focalCategory && (
         <MultiChoicePrompt
           prompt={
-            CATEGORY_SCENARIO_PROMPTS[focalCategory.slug] ??
+            focalCategory.scenario_prompt ??
             `What's been coming up around ${focalCategory.name.toLowerCase()}?`
           }
           subPrompt={
