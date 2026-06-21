@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { isSessionMember } from "@/lib/sessions";
 
 /**
  * Schedule a check-in for a session, replacing any existing pending check-in
@@ -17,6 +18,10 @@ export async function scheduleCheckIn(sessionId: string, daysFromNow: number) {
 
   if (![3, 7, 14].includes(daysFromNow)) {
     return { error: "Pick a supported reminder window." };
+  }
+
+  if (!(await isSessionMember(supabase, sessionId, user.id))) {
+    return { error: "You're not part of this session." };
   }
 
   const scheduled = new Date();

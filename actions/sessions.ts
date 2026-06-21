@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { CUSTOM_KEY, type WhoOption } from "@/lib/session-options";
+import { isSessionMember } from "@/lib/sessions";
 
 type ScenarioChoice = {
   scenarioId: string | null;
@@ -95,6 +96,10 @@ export async function submitResponse(input: SubmitResponseInput) {
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
 
+  if (!(await isSessionMember(supabase, input.sessionId, user.id))) {
+    return { error: "You're not part of this session." };
+  }
+
   if (input.why === CUSTOM_KEY && !input.whyCustom?.trim()) {
     return { error: "Please describe your 'why'." };
   }
@@ -143,6 +148,10 @@ export async function submitAction(input: SubmitActionInput) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
+
+  if (!(await isSessionMember(supabase, input.sessionId, user.id))) {
+    return { error: "You're not part of this session." };
+  }
 
   const { error: upsertError } = await supabase.from("session_actions").upsert(
     {

@@ -176,7 +176,7 @@ begin
   );
   return new;
 end;
-$$ language plpgsql security definer;
+$$ language plpgsql security definer set search_path = '';
 
 create trigger on_auth_user_created
   after insert on auth.users
@@ -208,7 +208,19 @@ where not exists (
 create or replace function public.get_my_partner_id()
 returns uuid as $$
   select partner_id from public.profiles where id = auth.uid();
-$$ language sql security definer stable;
+$$ language sql security definer stable set search_path = '';
+
+-- Returns true if the current user is the initiator or partner of the given
+-- session. SECURITY DEFINER so RLS policies on session_* tables can check
+-- membership without recursively triggering the sessions table's own RLS.
+create or replace function public.is_session_member(session_id_input uuid)
+returns boolean as $$
+  select exists (
+    select 1 from public.sessions s
+    where s.id = session_id_input
+      and (s.initiator_id = auth.uid() or s.partner_id = auth.uid())
+  );
+$$ language sql security definer stable set search_path = '';
 
 -- --------------------------------------------------------
 -- 10. PARTNER LINKING FUNCTIONS (SECURITY DEFINER)
@@ -256,7 +268,7 @@ begin
 
   return jsonb_build_object('success', true, 'partner_name', partner_record.display_name);
 end;
-$$ language plpgsql security definer;
+$$ language plpgsql security definer set search_path = '';
 
 create or replace function public.unlink_partners()
 returns jsonb as $$
@@ -281,7 +293,7 @@ begin
 
   return jsonb_build_object('success', true);
 end;
-$$ language plpgsql security definer;
+$$ language plpgsql security definer set search_path = '';
 
 -- --------------------------------------------------------
 -- 11. ROW LEVEL SECURITY
@@ -304,9 +316,12 @@ create policy "Users can view partner profile"
   on public.profiles for select
   using (id = public.get_my_partner_id());
 
-create policy "Anyone can look up profiles by invite code"
-  on public.profiles for select
-  using (invite_code is not null);
+-- NOTE: there is deliberately NO blanket "look up any profile by invite code"
+-- SELECT policy. Partner linking happens via the link_partners() SECURITY
+-- DEFINER function (which bypasses RLS to look up the inviter), so clients
+-- never need direct read access to other users' profiles. A blanket policy
+-- here would expose every user's id, display_name, invite_code, and
+-- partner_id to any authenticated user.
 
 create policy "Users can update own profile"
   on public.profiles for update
@@ -337,58 +352,54 @@ create policy "Users can update sessions they're part of"
   on public.sessions for update
   using (auth.uid() = initiator_id or auth.uid() = partner_id);
 
--- SESSION_RESPONSES: a user can read both responses (theirs + partner's)
--- but can only write their own. We piggyback on the session RLS:
--- if you can see the session, you can see its responses.
+-- SESSION_RESPONSES: a user can read both responses (theirs + partner's) and
+-- write only their OWN response, and ONLY in a session they belong to. The
+-- is_session_member() check is what stops a stranger from writing a row into
+-- another couple's session (the user_id check alone does not — it only proves
+-- the row is attributed to the caller, not that the caller is in the session).
 create policy "Users can view responses for their sessions"
   on public.session_responses for select
-  using (
-    exists (
-      select 1 from public.sessions s
-      where s.id = session_responses.session_id
-        and (s.initiator_id = auth.uid() or s.partner_id = auth.uid())
-    )
-  );
+  using (public.is_session_member(session_id));
 
 create policy "Users can insert their own response"
   on public.session_responses for insert
-  with check (auth.uid() = user_id);
+  with check (auth.uid() = user_id and public.is_session_member(session_id));
 
 create policy "Users can update their own response"
   on public.session_responses for update
-  using (auth.uid() = user_id);
+  using (auth.uid() = user_id and public.is_session_member(session_id))
+  with check (auth.uid() = user_id and public.is_session_member(session_id));
 
--- SESSION_ACTIONS: same pattern as session_responses
+-- SESSION_ACTIONS: same pattern as session_responses. Membership on insert is
+-- also what protects submitAction's "count >= 2 -> completed" logic: without
+-- it, a non-member could inject a row and inflate the count.
 create policy "Users can view actions for their sessions"
   on public.session_actions for select
-  using (
-    exists (
-      select 1 from public.sessions s
-      where s.id = session_actions.session_id
-        and (s.initiator_id = auth.uid() or s.partner_id = auth.uid())
-    )
-  );
+  using (public.is_session_member(session_id));
 
 create policy "Users can insert their own action"
   on public.session_actions for insert
-  with check (auth.uid() = user_id);
+  with check (auth.uid() = user_id and public.is_session_member(session_id));
 
 create policy "Users can update their own action"
   on public.session_actions for update
-  using (auth.uid() = user_id);
+  using (auth.uid() = user_id and public.is_session_member(session_id))
+  with check (auth.uid() = user_id and public.is_session_member(session_id));
 
--- CHECK_INS: each user owns their own check-ins
+-- CHECK_INS: each user owns their own check-ins, and may only create them for
+-- a session they belong to.
 create policy "Users can view their own check-ins"
   on public.check_ins for select
   using (auth.uid() = user_id);
 
 create policy "Users can create their own check-ins"
   on public.check_ins for insert
-  with check (auth.uid() = user_id);
+  with check (auth.uid() = user_id and public.is_session_member(session_id));
 
 create policy "Users can update their own check-ins"
   on public.check_ins for update
-  using (auth.uid() = user_id);
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
 
 -- --------------------------------------------------------
 -- 12. SEED DATA — Categories

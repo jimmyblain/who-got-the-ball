@@ -4,6 +4,27 @@ import type { Session, Scenario } from "@/lib/types";
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
 /**
+ * Returns true if `userId` is the initiator or partner of the session.
+ *
+ * Defense-in-depth on top of the RLS membership policies: it lets server
+ * actions reject writes to sessions the caller isn't part of with a clear
+ * error instead of a cryptic RLS failure. Note the sessions SELECT is itself
+ * RLS-gated to members, so a non-member's lookup returns no row -> false.
+ */
+export async function isSessionMember(
+  supabase: SupabaseServerClient,
+  sessionId: string,
+  userId: string,
+): Promise<boolean> {
+  const { data } = await supabase
+    .from("sessions")
+    .select("initiator_id, partner_id")
+    .eq("id", sessionId)
+    .maybeSingle<Pick<Session, "initiator_id" | "partner_id">>();
+  return !!data && (data.initiator_id === userId || data.partner_id === userId);
+}
+
+/**
  * Resolve the focal scenario text for a session.
  * Returns the custom text if present, otherwise looks up the preset scenario row.
  */
