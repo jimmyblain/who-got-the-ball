@@ -162,6 +162,12 @@ create table public.check_ins (
 
 create index check_ins_user_due_idx on public.check_ins(user_id, scheduled_for) where status = 'pending';
 
+-- At most one PENDING check-in per (session, user). Enforces the "one pending
+-- per session per user" invariant the scheduleCheckIn action relies on, even if
+-- its delete-then-insert races. Completed/dismissed rows are unconstrained.
+create unique index check_ins_one_pending_per_user
+  on public.check_ins(session_id, user_id) where status = 'pending';
+
 -- --------------------------------------------------------
 -- 8. AUTO-CREATE PROFILE ON SIGNUP (Trigger)
 -- --------------------------------------------------------
@@ -221,6 +227,33 @@ returns boolean as $$
       and (s.initiator_id = auth.uid() or s.partner_id = auth.uid())
   );
 $$ language sql security definer stable set search_path = '';
+
+-- Marks a session 'completed' once BOTH partners have committed an action.
+-- Runs inside the same transaction as the session_actions write and locks the
+-- session row first, so two partners committing simultaneously serialize here
+-- and the second committer reliably sees both rows (no read-then-write race,
+-- unlike doing the count + update in application code).
+create or replace function public.complete_session_when_both_committed()
+returns trigger as $$
+declare
+  committed_count int;
+begin
+  perform 1 from public.sessions where id = new.session_id for update;
+  select count(*) into committed_count
+    from public.session_actions
+    where session_id = new.session_id;
+  if committed_count >= 2 then
+    update public.sessions
+      set status = 'completed', completed_at = now()
+      where id = new.session_id and status <> 'completed';
+  end if;
+  return new;
+end;
+$$ language plpgsql security definer set search_path = '';
+
+create trigger session_actions_complete
+  after insert or update on public.session_actions
+  for each row execute procedure public.complete_session_when_both_committed();
 
 -- --------------------------------------------------------
 -- 10. PARTNER LINKING FUNCTIONS (SECURITY DEFINER)

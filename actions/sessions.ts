@@ -3,8 +3,17 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { CUSTOM_KEY, type WhoOption } from "@/lib/session-options";
-import { isSessionMember } from "@/lib/sessions";
+import {
+  CUSTOM_KEY,
+  WHO_OPTIONS,
+  WHY_OPTIONS,
+  EXPECTATION_OPTIONS,
+  ACTION_OPTIONS,
+  LANGUAGE_OPTIONS,
+  isPresetKey,
+  type WhoOption,
+} from "@/lib/session-options";
+import { getSessionAccess } from "@/lib/sessions";
 
 type ScenarioChoice = {
   scenarioId: string | null;
@@ -53,6 +62,30 @@ export async function createSession(input: CreateSessionInput) {
     return { error: "Pick or describe a focal scenario." };
   }
 
+  // Validate preset scenario choices against the DB so a crafted request can't
+  // persist a focal scenario from the wrong category (or a non-top-level
+  // scenario as the top-of-mind one). Custom free-text choices skip this.
+  if (input.topScenario.scenarioId) {
+    const { data: top } = await supabase
+      .from("scenarios")
+      .select("category_id")
+      .eq("id", input.topScenario.scenarioId)
+      .maybeSingle<{ category_id: string | null }>();
+    if (!top || top.category_id !== null) {
+      return { error: "That isn't a valid top-level scenario." };
+    }
+  }
+  if (input.focalScenario.scenarioId) {
+    const { data: focal } = await supabase
+      .from("scenarios")
+      .select("category_id")
+      .eq("id", input.focalScenario.scenarioId)
+      .maybeSingle<{ category_id: string | null }>();
+    if (!focal || focal.category_id !== input.focalCategoryId) {
+      return { error: "That scenario doesn't belong to the chosen category." };
+    }
+  }
+
   const { data: session, error } = await supabase
     .from("sessions")
     .insert({
@@ -96,10 +129,32 @@ export async function submitResponse(input: SubmitResponseInput) {
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
 
-  if (!(await isSessionMember(supabase, input.sessionId, user.id))) {
+  const { isMember, status } = await getSessionAccess(
+    supabase,
+    input.sessionId,
+    user.id,
+  );
+  if (!isMember) {
     return { error: "You're not part of this session." };
   }
+  if (status !== "in_progress") {
+    return { error: "This session is already complete." };
+  }
 
+  // Reject values that aren't a known preset (or 'custom' where allowed) so a
+  // crafted request can't store arbitrary text the partner would see.
+  if (!isPresetKey(WHO_OPTIONS, input.whoHasBall)) {
+    return { error: "Pick who's got the ball." };
+  }
+  if (input.why !== CUSTOM_KEY && !isPresetKey(WHY_OPTIONS, input.why)) {
+    return { error: "Pick a valid reason." };
+  }
+  if (
+    input.expectation !== CUSTOM_KEY &&
+    !isPresetKey(EXPECTATION_OPTIONS, input.expectation)
+  ) {
+    return { error: "Pick a valid expectation." };
+  }
   if (input.why === CUSTOM_KEY && !input.whyCustom?.trim()) {
     return { error: "Please describe your 'why'." };
   }
@@ -149,8 +204,36 @@ export async function submitAction(input: SubmitActionInput) {
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
 
-  if (!(await isSessionMember(supabase, input.sessionId, user.id))) {
+  const { isMember, status } = await getSessionAccess(
+    supabase,
+    input.sessionId,
+    user.id,
+  );
+  if (!isMember) {
     return { error: "You're not part of this session." };
+  }
+  if (status !== "in_progress") {
+    return { error: "This session is already complete." };
+  }
+
+  if (!isPresetKey(ACTION_OPTIONS, input.action)) {
+    return { error: "Pick a valid action." };
+  }
+  if (!isPresetKey(LANGUAGE_OPTIONS, input.language)) {
+    return { error: "Pick a valid phrase." };
+  }
+
+  // You can only commit to a shift after you've answered. This also stops a
+  // deep-link straight to /shift from completing a session that has no
+  // responses (which could never render a reveal).
+  const { data: ownResponse } = await supabase
+    .from("session_responses")
+    .select("user_id")
+    .eq("session_id", input.sessionId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (!ownResponse) {
+    return { error: "Answer the questions before making the shift." };
   }
 
   const { error: upsertError } = await supabase.from("session_actions").upsert(
@@ -168,20 +251,13 @@ export async function submitAction(input: SubmitActionInput) {
 
   if (upsertError) return { error: upsertError.message };
 
-  // If both partners have now committed, mark the session completed.
-  const { count } = await supabase
-    .from("session_actions")
-    .select("*", { count: "exact", head: true })
-    .eq("session_id", input.sessionId);
-
-  if ((count ?? 0) >= 2) {
-    await supabase
-      .from("sessions")
-      .update({ status: "completed", completed_at: new Date().toISOString() })
-      .eq("id", input.sessionId);
-  }
+  // Marking the session completed once BOTH partners have committed is handled
+  // atomically by the complete_session_when_both_committed() trigger on
+  // session_actions. Doing the count+update here would race when both partners
+  // submit at the same time (each could read count < 2 and neither would flip).
 
   revalidatePath(`/session/${input.sessionId}/shift`);
+  revalidatePath(`/session/${input.sessionId}`);
   revalidatePath("/dashboard");
 
   return { success: true };

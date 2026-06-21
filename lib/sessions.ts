@@ -1,27 +1,38 @@
 import { createClient } from "@/lib/supabase/server";
-import type { Session, Scenario } from "@/lib/types";
+import type { Session, Scenario, SessionStatus } from "@/lib/types";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
+export type SessionAccess = {
+  isMember: boolean;
+  status: SessionStatus | null;
+};
+
 /**
- * Returns true if `userId` is the initiator or partner of the session.
+ * Loads a user's membership and the session's status in a single query.
+ * `isMember` is false (and status null) when the session doesn't exist or the
+ * user isn't a participant.
  *
  * Defense-in-depth on top of the RLS membership policies: it lets server
- * actions reject writes to sessions the caller isn't part of with a clear
- * error instead of a cryptic RLS failure. Note the sessions SELECT is itself
- * RLS-gated to members, so a non-member's lookup returns no row -> false.
+ * actions reject writes to sessions the caller isn't part of — or that are
+ * already completed — with a clear error instead of a cryptic RLS failure.
+ * Note the sessions SELECT is itself RLS-gated to members, so a non-member's
+ * lookup returns no row -> isMember false.
  */
-export async function isSessionMember(
+export async function getSessionAccess(
   supabase: SupabaseServerClient,
   sessionId: string,
   userId: string,
-): Promise<boolean> {
+): Promise<SessionAccess> {
   const { data } = await supabase
     .from("sessions")
-    .select("initiator_id, partner_id")
+    .select("initiator_id, partner_id, status")
     .eq("id", sessionId)
-    .maybeSingle<Pick<Session, "initiator_id" | "partner_id">>();
-  return !!data && (data.initiator_id === userId || data.partner_id === userId);
+    .maybeSingle<Pick<Session, "initiator_id" | "partner_id" | "status">>();
+  if (!data || (data.initiator_id !== userId && data.partner_id !== userId)) {
+    return { isMember: false, status: null };
+  }
+  return { isMember: true, status: data.status };
 }
 
 /**

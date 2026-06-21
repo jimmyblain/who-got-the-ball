@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
-import { isSessionMember } from "@/lib/sessions";
+import { getSessionAccess } from "@/lib/sessions";
 
 /**
  * Schedule a check-in for a session, replacing any existing pending check-in
@@ -20,7 +20,8 @@ export async function scheduleCheckIn(sessionId: string, daysFromNow: number) {
     return { error: "Pick a supported reminder window." };
   }
 
-  if (!(await isSessionMember(supabase, sessionId, user.id))) {
+  const { isMember } = await getSessionAccess(supabase, sessionId, user.id);
+  if (!isMember) {
     return { error: "You're not part of this session." };
   }
 
@@ -28,12 +29,17 @@ export async function scheduleCheckIn(sessionId: string, daysFromNow: number) {
   scheduled.setDate(scheduled.getDate() + daysFromNow);
   const scheduledFor = scheduled.toISOString().split("T")[0];
 
-  await supabase
+  // Clear any existing pending check-in first so there's only ever one. If the
+  // delete itself fails we must NOT insert, or we'd leave two pending rows
+  // (a partial unique index also backstops this at the DB level).
+  const { error: deleteError } = await supabase
     .from("check_ins")
     .delete()
     .eq("session_id", sessionId)
     .eq("user_id", user.id)
     .eq("status", "pending");
+
+  if (deleteError) return { error: deleteError.message };
 
   const { error } = await supabase.from("check_ins").insert({
     session_id: sessionId,

@@ -241,8 +241,14 @@ function IncompleteResponses({
   );
 }
 
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, {
+function formatDate(value: string): string {
+  // A DATE column (e.g. check_ins.scheduled_for) comes back as "YYYY-MM-DD".
+  // `new Date("2026-06-23")` parses as UTC midnight, which renders as the
+  // PREVIOUS day for users behind UTC. Parse date-only values as local midnight
+  // so the stored calendar date is shown faithfully; timestamps parse as-is.
+  const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(value);
+  const date = isDateOnly ? new Date(`${value}T00:00:00`) : new Date(value);
+  return date.toLocaleDateString(undefined, {
     year: "numeric",
     month: "short",
     day: "numeric",

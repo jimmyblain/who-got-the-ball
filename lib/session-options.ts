@@ -75,3 +75,15 @@ export function labelFor(
 ): string {
   return options.find((o) => o.key === key)?.label ?? key;
 }
+
+/**
+ * True if `key` is one of the preset option keys. Server actions use this to
+ * reject arbitrary client-supplied values before they reach the DB (the why /
+ * expectation / action / language columns have no CHECK constraint).
+ */
+export function isPresetKey(
+  options: readonly { key: string }[],
+  key: string,
+): boolean {
+  return options.some((o) => o.key === key);
+}
