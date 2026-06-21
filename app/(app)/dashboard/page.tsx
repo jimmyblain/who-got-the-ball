@@ -1,18 +1,16 @@
 import { connection } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { CategoryCard } from "@/components/dashboard/category-card";
-import type { CategoryWithStats, AnswerValue } from "@/lib/types";
+import Link from "next/link";
+import { CheckInBanner, type DueCheckIn } from "@/components/check-in-banner";
+import { SessionHistory } from "@/components/home/session-history";
+import type { Session, Scenario } from "@/lib/types";
 
 /**
- * Dashboard Home — shows one card per category with summary stats.
- * This is the main hub after onboarding. Users see their categories
- * and can tap into any one to see the detailed questions.
- *
- * This is a Server Component — it fetches data on the server before
- * sending HTML to the browser. This makes it fast and secure.
+ * Home page after login.
+ * Shows: due check-ins → in-progress sessions → start a session CTA → past sessions.
  */
-export default async function DashboardPage() {
+export default async function HomePage() {
   await connection();
   const supabase = await createClient();
 
@@ -21,142 +19,136 @@ export default async function DashboardPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/auth/login");
 
-  // Get the user's profile (for partner info)
   const { data: profile } = await supabase
     .from("profiles")
-    .select("partner_id")
+    .select("display_name, partner_id")
     .eq("id", user.id)
     .single();
 
-  const hasPartner = !!profile?.partner_id;
+  const today = new Date().toISOString().split("T")[0];
 
-  // Fetch all categories
-  const { data: categories } = await supabase
-    .from("categories")
-    .select("*")
-    .order("sort_order");
+  const [
+    { data: allSessions },
+    { data: scenarios },
+    { data: dueCheckInRows },
+  ] = await Promise.all([
+    supabase
+      .from("sessions")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .returns<Session[]>(),
+    supabase
+      .from("scenarios")
+      .select("id, scenario_text")
+      .returns<Pick<Scenario, "id" | "scenario_text">[]>(),
+    supabase
+      .from("check_ins")
+      .select("id, session_id, scheduled_for, sessions(focal_scenario_id, focal_scenario_custom)")
+      .eq("user_id", user.id)
+      .eq("status", "pending")
+      .lte("scheduled_for", today)
+      .order("scheduled_for", { ascending: true }),
+  ]);
 
-  // Fetch all questions
-  const { data: questions } = await supabase
-    .from("questions")
-    .select("*")
-    .order("sort_order");
+  const scenarioById = new Map(
+    scenarios?.map((s) => [s.id, s.scenario_text]) ?? [],
+  );
 
-  // Fetch the user's answers
-  const { data: myAnswers } = await supabase
-    .from("answers")
-    .select("*")
-    .eq("user_id", user.id);
+  const inProgress = (allSessions ?? []).filter((s) => s.status === "in_progress");
+  const completed = (allSessions ?? []).filter((s) => s.status === "completed");
 
-  // Fetch partner's answers (if partnered)
-  let partnerAnswers: { question_id: string; answer: AnswerValue }[] = [];
-  if (hasPartner) {
-    const { data } = await supabase
-      .from("answers")
-      .select("question_id, answer")
-      .eq("user_id", profile!.partner_id!);
-    if (data) partnerAnswers = data as { question_id: string; answer: AnswerValue }[];
-  }
-
-  if (!categories || !questions) {
-    return <p>Error loading data.</p>;
-  }
-
-  // Build category cards with summary stats
-  const categoriesWithStats: CategoryWithStats[] = categories.map((cat) => {
-    const catQuestions = questions.filter((q) => q.category_id === cat.id);
-    const catAnswers = myAnswers?.filter((a) =>
-      catQuestions.some((q) => q.id === a.question_id)
-    ) || [];
-
-    // Count how many balls are mine, partner's, or shared
-    const mine_count = catAnswers.filter((a) => a.answer === "mine").length;
-    const partner_count = catAnswers.filter((a) => a.answer === "partner").length;
-    const shared_count = catAnswers.filter((a) => a.answer === "shared").length;
-    const unanswered_count = catQuestions.length - catAnswers.length;
-
-    // Count discussion items: any mismatch between partners' answers.
-    // Agreement rules:
-    //   Both "shared" → agree
-    //   I say "mine" + partner says "partner" → agree (both say I own it)
-    //   I say "partner" + partner says "mine" → agree (both say they own it)
-    //   Everything else (including one-sided answers) → needs discussion
-    let conflict_count = 0;
-    if (hasPartner) {
-      catQuestions.forEach((q) => {
-        const myAnswer = catAnswers.find((a) => a.question_id === q.id);
-        const partnerAnswer = partnerAnswers.find((pa) => pa.question_id === q.id);
-
-        // Skip if neither has answered
-        if (!myAnswer && !partnerAnswer) return;
-
-        // If only one has answered, that's a mismatch
-        if (!myAnswer || !partnerAnswer) {
-          conflict_count++;
-          return;
-        }
-
-        const mine = myAnswer.answer as AnswerValue;
-        const theirs = partnerAnswer.answer as AnswerValue;
-
-        // Check if they agree
-        const isAgreement =
-          (mine === "shared" && theirs === "shared") ||
-          (mine === "mine" && theirs === "partner") ||
-          (mine === "partner" && theirs === "mine");
-
-        if (!isAgreement) {
-          conflict_count++;
-        }
-      });
-    }
-
+  const dueCheckIns: DueCheckIn[] = (dueCheckInRows ?? []).map((row) => {
+    const sessionRel = row.sessions as
+      | { focal_scenario_id: string | null; focal_scenario_custom: string | null }
+      | { focal_scenario_id: string | null; focal_scenario_custom: string | null }[]
+      | null;
+    const sessionData = Array.isArray(sessionRel) ? sessionRel[0] : sessionRel;
+    const scenarioText =
+      sessionData?.focal_scenario_custom ??
+      (sessionData?.focal_scenario_id
+        ? scenarioById.get(sessionData.focal_scenario_id)
+        : null) ??
+      "Untitled session";
     return {
-      ...cat,
-      total_questions: catQuestions.length,
-      mine_count,
-      partner_count,
-      shared_count,
-      unanswered_count,
-      conflict_count,
+      id: row.id as string,
+      sessionId: row.session_id as string,
+      scenarioText,
     };
   });
 
   return (
-    <div>
-      {/* Page header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">Your Balls</h1>
-        <p className="text-muted-foreground mt-1">
-          Tap a category to see the details.
-        </p>
+    <div className="max-w-2xl mx-auto py-10 space-y-8">
+      <div className="text-center space-y-2">
+        <div className="text-5xl">🏀</div>
+        <h1 className="text-3xl font-bold">
+          Hey{profile?.display_name ? `, ${profile.display_name}` : ""}.
+        </h1>
       </div>
 
-      {/* Partner prompt if not partnered yet */}
-      {!hasPartner && (
-        <div className="mb-6 p-4 rounded-2xl bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800">
-          <p className="text-sm text-purple-700 dark:text-purple-300">
-            Want to compare answers with your partner?{" "}
-            <a
-              href="/partner"
-              className="font-semibold underline underline-offset-2"
-            >
-              Set up partner link →
-            </a>
+      {!profile?.partner_id ? (
+        <div className="rounded-2xl border bg-card p-6">
+          <h2 className="font-semibold mb-2">First step: link with your partner</h2>
+          <p className="text-sm text-muted-foreground mb-4">
+            Sessions are designed for two people. Send your partner an invite
+            link to get started.
           </p>
+          <Link
+            href="/partner"
+            className="inline-block px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90"
+          >
+            Go to partner setup →
+          </Link>
         </div>
-      )}
+      ) : (
+        <>
+          <CheckInBanner checkIns={dueCheckIns} />
 
-      {/* Category cards grid */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {categoriesWithStats.map((category) => (
-          <CategoryCard
-            key={category.id}
-            category={category}
-            hasPartner={hasPartner}
-          />
-        ))}
-      </div>
+          {inProgress.length > 0 && (
+            <div className="space-y-3">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                In progress
+              </h2>
+              {inProgress.map((s) => {
+                const text =
+                  s.focal_scenario_custom ??
+                  (s.focal_scenario_id ? scenarioById.get(s.focal_scenario_id) : null) ??
+                  "Untitled session";
+                return (
+                  <Link
+                    key={s.id}
+                    href={`/session/${s.id}/answer`}
+                    className="block rounded-2xl border bg-card p-5 hover:bg-secondary/40 transition-colors"
+                  >
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">
+                      The ball
+                    </p>
+                    <p className="font-medium">{text}</p>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Continue →
+                    </p>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="rounded-2xl border bg-card p-6 text-center space-y-3">
+            <h2 className="text-xl font-bold">Start a new session</h2>
+            <p className="text-sm text-muted-foreground">
+              Pick something that&apos;s been coming up and walk through it
+              together.
+            </p>
+            <Link
+              href="/session/new"
+              className="inline-block px-5 py-2.5 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90"
+            >
+              Start a session →
+            </Link>
+          </div>
+
+          <SessionHistory sessions={completed} scenarioById={scenarioById} />
+        </>
+      )}
     </div>
   );
 }
