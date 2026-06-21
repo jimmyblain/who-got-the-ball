@@ -1,35 +1,19 @@
-import { connection } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { AnswerFlow } from "@/components/session/answer-flow";
-import { resolveFocalScenarioText } from "@/lib/sessions";
-import type { Session, SessionResponse } from "@/lib/types";
+import {
+  loadOwnedSession,
+  resolveFocalScenarioText,
+  resolveDisplayName,
+} from "@/lib/sessions";
+import type { SessionResponse } from "@/lib/types";
 
 type Props = {
   params: Promise<{ id: string }>;
 };
 
 export default async function AnswerPage({ params }: Props) {
-  await connection();
   const { id: sessionId } = await params;
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/auth/login");
-
-  const { data: session } = await supabase
-    .from("sessions")
-    .select("*")
-    .eq("id", sessionId)
-    .single<Session>();
-
-  if (!session) notFound();
-  if (session.initiator_id !== user.id && session.partner_id !== user.id) {
-    notFound();
-  }
+  const { supabase, user, session } = await loadOwnedSession(sessionId);
 
   const focalText = await resolveFocalScenarioText(supabase, session);
 
@@ -45,12 +29,12 @@ export default async function AnswerPage({ params }: Props) {
   const partnerResponse = responses?.find((r) => r.user_id === partnerId);
 
   if (myResponse) {
+    const partnerName = await resolveDisplayName(supabase, partnerId);
     return (
       <SubmittedView
         sessionId={sessionId}
         partnerSubmitted={!!partnerResponse}
-        partnerId={partnerId}
-        supabaseClient={supabase}
+        partnerName={partnerName}
       />
     );
   }
@@ -62,24 +46,15 @@ export default async function AnswerPage({ params }: Props) {
   );
 }
 
-async function SubmittedView({
+function SubmittedView({
   sessionId,
   partnerSubmitted,
-  partnerId,
-  supabaseClient,
+  partnerName,
 }: {
   sessionId: string;
   partnerSubmitted: boolean;
-  partnerId: string;
-  supabaseClient: Awaited<ReturnType<typeof createClient>>;
+  partnerName: string;
 }) {
-  const { data: partner } = await supabaseClient
-    .from("profiles")
-    .select("display_name")
-    .eq("id", partnerId)
-    .single();
-  const partnerName = partner?.display_name ?? "your partner";
-
   if (partnerSubmitted) {
     return (
       <div className="max-w-xl mx-auto py-12 text-center space-y-4">

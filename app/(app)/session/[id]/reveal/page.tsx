@@ -1,36 +1,20 @@
-import { connection } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { RevealCard } from "@/components/session/reveal-card";
-import { resolveFocalScenarioText } from "@/lib/sessions";
-import type { Session, SessionResponse } from "@/lib/types";
+import {
+  loadOwnedSession,
+  resolveFocalScenarioText,
+  resolveDisplayName,
+} from "@/lib/sessions";
+import type { SessionResponse } from "@/lib/types";
 
 type Props = {
   params: Promise<{ id: string }>;
 };
 
 export default async function RevealPage({ params }: Props) {
-  await connection();
   const { id: sessionId } = await params;
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/auth/login");
-
-  const { data: session } = await supabase
-    .from("sessions")
-    .select("*")
-    .eq("id", sessionId)
-    .single<Session>();
-
-  if (!session) notFound();
-  if (session.initiator_id !== user.id && session.partner_id !== user.id) {
-    notFound();
-  }
+  const { supabase, user, session } = await loadOwnedSession(sessionId);
 
   const { data: responses } = await supabase
     .from("session_responses")
@@ -48,10 +32,7 @@ export default async function RevealPage({ params }: Props) {
   }
 
   const focalText = await resolveFocalScenarioText(supabase, session);
-  const [viewerName, partnerName] = await Promise.all([
-    resolveDisplayName(supabase, user.id),
-    resolveDisplayName(supabase, partnerId),
-  ]);
+  const partnerName = await resolveDisplayName(supabase, partnerId);
 
   return (
     <div className="max-w-3xl mx-auto py-6 space-y-8">
@@ -66,7 +47,6 @@ export default async function RevealPage({ params }: Props) {
         focalScenarioText={focalText}
         viewerResponse={myResponse}
         partnerResponse={partnerResponse}
-        viewerName={viewerName}
         partnerName={partnerName}
       />
 
@@ -105,16 +85,4 @@ function NotReadyView({
       )}
     </div>
   );
-}
-
-async function resolveDisplayName(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  userId: string,
-): Promise<string> {
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("display_name")
-    .eq("id", userId)
-    .single();
-  return profile?.display_name ?? "Your partner";
 }

@@ -1,7 +1,56 @@
+import { connection } from "next/server";
+import { redirect, notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import type { Session, Scenario, SessionStatus } from "@/lib/types";
+import type { Session, Scenario, SessionStatus, Profile } from "@/lib/types";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
+
+/**
+ * Standard page-level loader for a session the current user belongs to.
+ * Marks the page dynamic, requires auth, loads the session, and enforces
+ * ownership — redirecting to login or 404ing as appropriate. Every
+ * /session/[id]/* page funnels through this so the access rule lives in one
+ * place. Returns the (non-null) session plus the server client and user.
+ */
+export async function loadOwnedSession(sessionId: string) {
+  await connection();
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/auth/login");
+
+  const { data: session } = await supabase
+    .from("sessions")
+    .select("*")
+    .eq("id", sessionId)
+    .single<Session>();
+
+  if (
+    !session ||
+    (session.initiator_id !== user.id && session.partner_id !== user.id)
+  ) {
+    notFound();
+  }
+
+  return { supabase, user, session };
+}
+
+/**
+ * Look up a user's display name, falling back to "Your partner" when unset.
+ */
+export async function resolveDisplayName(
+  supabase: SupabaseServerClient,
+  userId: string,
+): Promise<string> {
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("display_name")
+    .eq("id", userId)
+    .single<Pick<Profile, "display_name">>();
+  return profile?.display_name ?? "Your partner";
+}
 
 export type SessionAccess = {
   isMember: boolean;

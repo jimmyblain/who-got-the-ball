@@ -49,6 +49,7 @@ create table public.categories (
   name text not null,
   slug text unique not null,        -- "finances" | "household" | "emotional"
   description text,                 -- subtext shown under the category card
+  scenario_prompt text,             -- heading shown above the scenario picker
   color text not null,
   icon text not null,
   sort_order int default 0,
@@ -437,10 +438,10 @@ create policy "Users can update their own check-ins"
 -- --------------------------------------------------------
 -- 12. SEED DATA — Categories
 -- --------------------------------------------------------
-insert into public.categories (name, slug, description, color, icon, sort_order) values
-  ('Financial', 'finances', 'Money decisions, bills, or who handles what', '#F59E0B', 'wallet', 1),
-  ('Household', 'household', 'Cleaning, chores, or things that need to get done', '#14B8A6', 'home', 2),
-  ('Emotional', 'emotional', 'How you talk, show up, and support each other', '#A78BFA', 'heart', 3);
+insert into public.categories (name, slug, description, scenario_prompt, color, icon, sort_order) values
+  ('Financial', 'finances', 'Money decisions, bills, or who handles what', 'What''s been coming up around money?', '#F59E0B', 'wallet', 1),
+  ('Household', 'household', 'Cleaning, chores, or things that need to get done', 'What''s been coming up at home?', '#14B8A6', 'home', 2),
+  ('Emotional', 'emotional', 'How you talk, show up, and support each other', 'What''s been coming up in how you relate to each other?', '#A78BFA', 'heart', 3);
 
 -- --------------------------------------------------------
 -- 13. SEED DATA — Scenarios

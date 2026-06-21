@@ -28,14 +28,23 @@ export default async function HomePage() {
   const today = new Date().toISOString().split("T")[0];
 
   const [
-    { data: allSessions },
+    { data: inProgressData },
+    { data: completedData },
     { data: scenarios },
     { data: dueCheckInRows },
   ] = await Promise.all([
     supabase
       .from("sessions")
       .select("*")
+      .eq("status", "in_progress")
       .order("created_at", { ascending: false })
+      .returns<Session[]>(),
+    supabase
+      .from("sessions")
+      .select("*")
+      .eq("status", "completed")
+      .order("completed_at", { ascending: false })
+      .limit(20)
       .returns<Session[]>(),
     supabase
       .from("scenarios")
@@ -54,8 +63,8 @@ export default async function HomePage() {
     scenarios?.map((s) => [s.id, s.scenario_text]) ?? [],
   );
 
-  const inProgress = (allSessions ?? []).filter((s) => s.status === "in_progress");
-  const completed = (allSessions ?? []).filter((s) => s.status === "completed");
+  const inProgress = inProgressData ?? [];
+  const completed = completedData ?? [];
 
   const dueCheckIns: DueCheckIn[] = (dueCheckInRows ?? []).map((row) => {
     const sessionRel = row.sessions as

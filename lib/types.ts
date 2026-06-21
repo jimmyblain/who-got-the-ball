@@ -2,6 +2,8 @@
  * TypeScript types matching the Supabase schema (v2: guided session).
  */
 
+import type { WhoOption } from "@/lib/session-options";
+
 export type Profile = {
   id: string;
   display_name: string | null;
@@ -16,6 +18,7 @@ export type Category = {
   name: string;
   slug: string;
   description: string | null;
+  scenario_prompt: string | null;
   color: string;
   icon: string;
   sort_order: number;
@@ -47,7 +50,9 @@ export type Session = {
   completed_at: string | null;
 };
 
-export type WhoHasBall = "me" | "you" | "both_dropped" | "not_sure";
+// Aliases WhoOption (the Who-picker keys in session-options) so the answer
+// options and the stored value can't drift apart.
+export type WhoHasBall = WhoOption;
 
 export type SessionResponse = {
   session_id: string;

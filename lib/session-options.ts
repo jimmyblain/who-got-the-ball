@@ -55,15 +55,8 @@ export const HEALTHY_PHRASES = [
 
 export const CUSTOM_KEY = "custom" as const;
 
-/**
- * Per-category prompt shown above the scenario picker.
- * Keyed by the category slug (matches `categories.slug` in the DB).
- */
-export const CATEGORY_SCENARIO_PROMPTS: Record<string, string> = {
-  finances: "What's been coming up around money?",
-  household: "What's been coming up at home?",
-  emotional: "What's been coming up in how you relate to each other?",
-};
+// Per-category scenario-picker prompts now live in the `categories.scenario_prompt`
+// DB column (data-driven), not a hardcoded map. See lib/types.ts Category.
 
 /**
  * Look up a label by its stored key. Returns the key as a fallback so we

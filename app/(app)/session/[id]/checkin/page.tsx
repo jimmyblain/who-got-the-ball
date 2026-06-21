@@ -1,9 +1,5 @@
-import { connection } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { redirect, notFound } from "next/navigation";
 import { CheckInScheduler } from "@/components/session/check-in-scheduler";
-import { resolveFocalScenarioText } from "@/lib/sessions";
-import type { Session } from "@/lib/types";
+import { loadOwnedSession, resolveFocalScenarioText } from "@/lib/sessions";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -14,25 +10,8 @@ type Props = {
  * Reached after the user submits their make-the-shift commitment.
  */
 export default async function CheckInPage({ params }: Props) {
-  await connection();
   const { id: sessionId } = await params;
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/auth/login");
-
-  const { data: session } = await supabase
-    .from("sessions")
-    .select("*")
-    .eq("id", sessionId)
-    .single<Session>();
-
-  if (!session) notFound();
-  if (session.initiator_id !== user.id && session.partner_id !== user.id) {
-    notFound();
-  }
+  const { supabase, session } = await loadOwnedSession(sessionId);
 
   const focalText = await resolveFocalScenarioText(supabase, session);
 
