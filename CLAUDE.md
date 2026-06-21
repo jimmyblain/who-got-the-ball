@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Purpose
 
-"Who's Got The Ball?" helps couples navigate shared responsibilities. Users answer questions across categories (Finances, Household Logistics, Emotional) about who "holds the ball" — i.e., who owns each responsibility. Answers are: "my ball", "my partner's ball", or "we share this ball". Partners can link accounts to surface conflicting answers as discussion items, and can "pass the ball" (transfer a responsibility) to each other with mutual consent.
+"Who's Got The Ball?" helps couples navigate shared responsibilities. Partners link accounts, then run guided **sessions**: they pick a top-of-mind scenario and a focal category (Finances, Household Logistics, Emotional), each privately answers who holds the ball (Who / Why / Expectation), then see a color-coded **reveal** comparing their answers, discuss, and commit to a **shift** (an action + a phrase). A session can schedule follow-up **check-ins**.
+
+> Earlier versions used a per-question `answers` + `transfers` ("pass the ball") model. That has been **replaced** by the session model — don't reintroduce those tables/flows unless explicitly asked.
 
 ## Commands
 
@@ -33,17 +35,27 @@ No test framework is configured yet.
 ### Key directories
 
 - `app/(app)/` — Route group for all authenticated pages; shares a nav layout (`layout.tsx`) with transfer badge
-- `actions/` — Server Actions: `answers.ts`, `partner.ts`, `transfers.ts`
-- `components/` — Client components organized by feature (`onboarding/`, `dashboard/`, `partner/`, `transfers/`)
+- `actions/` — Server Actions: `sessions.ts`, `check-ins.ts`, `partner.ts`, `onboarding.ts`, `profile.ts`
+- `components/` — Client components organized by feature (`session/`, `home/`, `settings/`, `partner/`); shared session option lists + helpers live in `lib/session-options.ts`, session data helpers in `lib/sessions.ts`
 - `components/ui/` — shadcn/ui primitives (do not edit manually)
 - `lib/supabase/server.ts` and `lib/supabase/client.ts` — Supabase client factories (server vs browser)
 - `supabase/schema.sql` — Full database DDL with RLS policies and seed data
 
 ### Database
 
-Five tables: `profiles`, `categories`, `questions`, `answers` (composite PK: `user_id + question_id`), `transfers`. All have Row Level Security enabled. A trigger (`handle_new_user`) auto-creates profiles on signup.
+Seven tables: `profiles`, `categories`, `scenarios`, `sessions`, `session_responses` (PK `session_id + user_id`), `session_actions` (PK `session_id + user_id`), `check_ins`. All have Row Level Security enabled. A trigger (`handle_new_user`) auto-creates profiles on signup.
 
-**RLS recursion gotcha:** Policies that subquery other RLS-protected tables cause 500 errors. Use `SECURITY DEFINER` functions (e.g., `get_my_partner_id()`) to break circular references.
+**RLS recursion gotcha:** Policies that subquery other RLS-protected tables cause 500 errors. Use `SECURITY DEFINER` functions (e.g., `get_my_partner_id()`, `is_session_member()`) to break circular references.
+
+**Security & data-integrity invariants (do not weaken without a strong, explicit reason):**
+
+- Session-scoped tables (`session_responses`, `session_actions`, `check_ins`) must gate **writes** on `is_session_member(session_id)`, **not** just `auth.uid() = user_id`. The `user_id` check only proves attribution, not membership — relying on it alone let any authenticated user write into another couple's session.
+- `profiles` is **not** world-readable: there is intentionally no blanket "look up by invite code" SELECT policy. Partner linking goes through the `link_partners()` `SECURITY DEFINER` RPC, so clients never need direct reads of other profiles. Don't add a broad profiles SELECT policy.
+- Every `SECURITY DEFINER` function sets `search_path = ''` and schema-qualifies object refs.
+- Session completion (status → `completed` once both partners commit) is handled by the `complete_session_when_both_committed()` trigger on `session_actions`, which row-locks the session. **Don't move this into a Server Action** — a count-then-update there races when both partners submit at once.
+- One pending check-in per `(session_id, user_id)` is enforced by the partial unique index `check_ins_one_pending_per_user`.
+
+**Applying schema changes:** editing `schema.sql` does NOT change the live database. Apply changes as an idempotent `supabase/fix-*.sql` script run in the Supabase **SQL Editor** (the Supabase MCP OAuth flow is currently broken). `schema.sql` is the canonical final state for fresh installs; keep it and the `fix-*.sql` migrations in sync.
 
 ### Next.js 16 specifics
 
@@ -64,9 +76,11 @@ Two required (see `.env.example`):
 ## Conventions
 
 - Server Actions use `"use server"` directive and are the only mutation path
-- Answers use `upsert` (insert-or-update) pattern to avoid race conditions
+- Session responses/actions use `upsert` with `onConflict: "session_id,user_id"` to avoid race conditions
+- Session write actions (`submitResponse`, `submitAction`, `scheduleCheckIn`) call `getSessionAccess()` (`lib/sessions.ts`) to enforce membership + `in_progress` status before writing — defense-in-depth on top of RLS
+- Validate answer keys (who/why/expectation/action/language) against the preset lists in `lib/session-options.ts` before writing — those columns have no DB CHECK constraint
+- `DATE` columns (e.g. `check_ins.scheduled_for`) must be parsed as local midnight for display; `new Date("YYYY-MM-DD")` parses as UTC and renders the previous day for users behind UTC
 - Partner linking is two-way: both profiles get `partner_id` set
-- Accepting a transfer auto-updates both users' answers
 - Path alias: `@/*` maps to project root
 
 ## Deployment
