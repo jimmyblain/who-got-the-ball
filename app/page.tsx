@@ -1,115 +1,93 @@
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { ThemeSwitcher } from "@/components/theme-switcher";
+import { CATEGORIES } from "@/lib/content";
 
-/**
- * Landing Page — the first thing visitors see.
- */
-export default function LandingPage() {
+const STEPS = [
+  {
+    title: "Pick the ball",
+    body: "Choose one thing that's been coming up, about money, home, or how you relate.",
+  },
+  {
+    title: "Take turns",
+    body: "Each of you answers three short questions on your own while the other looks away.",
+  },
+  {
+    title: "See it together",
+    body: "Your answers sit side by side, showing where you see it the same way and what's worth talking about.",
+  },
+];
+
+export default function Home() {
   return (
-    <main className="min-h-screen flex flex-col">
-      <nav className="w-full border-b">
-        <div className="max-w-5xl mx-auto flex h-14 items-center justify-between px-4">
-          <span className="font-bold text-lg bg-gradient-to-r from-purple-500 to-teal-400 bg-clip-text text-transparent">
-            Who&apos;s Got The Ball?
-          </span>
-          <div className="flex items-center gap-2">
-            <ThemeSwitcher />
-            <Button asChild variant="ghost" size="sm">
-              <Link href="/auth/login">Log in</Link>
-            </Button>
-            <Button asChild size="sm">
-              <Link href="/auth/sign-up">Sign up</Link>
-            </Button>
-          </div>
-        </div>
-      </nav>
+    <div className="flex min-h-dvh flex-col">
+      <header className="border-b border-line px-5 py-5 sm:px-10 lg:px-14">
+        <p className="font-display text-[22px] leading-[0.9] font-extrabold uppercase">
+          Who&apos;s got
+          <br />
+          the ball
+        </p>
+      </header>
 
-      <div className="flex-1 flex flex-col items-center justify-center px-4 py-20">
-        <div className="max-w-2xl text-center space-y-6">
-          <div className="flex justify-center gap-4 text-5xl">
-            <span className="animate-bob" style={{ animationDelay: "0s" }}>
-              🟡
-            </span>
-            <span className="animate-bob" style={{ animationDelay: "0.3s" }}>
-              🟢
-            </span>
-            <span className="animate-bob" style={{ animationDelay: "0.6s" }}>
-              🟣
-            </span>
-          </div>
-
-          <h1 className="text-4xl sm:text-5xl font-bold tracking-tight">
-            Ever feel like you have{" "}
-            <span className="bg-gradient-to-r from-amber-500 via-teal-500 to-purple-500 bg-clip-text text-transparent">
-              all the responsibility
-            </span>
-            ,<br className="hidden sm:block" /> while the other person thinks they do too?
+      <main className="mx-auto flex w-full max-w-[1200px] flex-1 flex-wrap items-start gap-10 px-5 py-8 sm:px-10 sm:py-12 lg:gap-14 lg:px-14 lg:py-14">
+        <section className="flex min-w-0 flex-[999_1_520px] flex-col gap-5">
+          <p className="font-mono text-xs tracking-[0.12em] text-muted">FOR TWO PEOPLE, ONE PHONE</p>
+          <h1 className="font-display text-[clamp(52px,7vw,104px)] leading-[0.86] font-extrabold uppercase">
+            Same ball.
+            <br />
+            Two views.
           </h1>
-
-          <p className="text-lg text-muted-foreground max-w-lg mx-auto">
-            This exercise helps you and your partner figure out who&apos;s actually
-            holding the ball — and how to talk about it.
+          <p className="max-w-[52ch] text-lg leading-relaxed text-muted">
+            Pick one shared responsibility that&apos;s been on your mind. Each of you says who you think
+            is holding it and why, then you look at both answers together and talk it through.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-3 justify-center pt-4">
-            <Button asChild size="lg" className="text-base">
-              <Link href="/auth/sign-up">Get started</Link>
-            </Button>
-            <Button asChild variant="outline" size="lg" className="text-base">
-              <Link href="/auth/login">I have an account</Link>
-            </Button>
+          <div className="mt-4 flex flex-col gap-3">
+            <h2 className="border-b border-ink pb-2.5 font-display text-xl font-extrabold uppercase">
+              What you can talk about
+            </h2>
+            <ul>
+              {CATEGORIES.map((category) => (
+                <li
+                  key={category.slug}
+                  className="flex flex-col gap-1 border-b border-line py-3.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-6"
+                >
+                  <span className="font-display text-[26px] leading-none font-bold uppercase">
+                    {category.name}
+                  </span>
+                  <span className="text-[15px] text-muted sm:text-right">{category.description}</span>
+                </li>
+              ))}
+            </ul>
           </div>
-        </div>
+        </section>
 
-        <div className="grid sm:grid-cols-3 gap-6 mt-20 max-w-4xl w-full">
-          <div className="rounded-2xl border bg-card p-6 text-center space-y-3">
-            <div
-              className="w-12 h-12 rounded-full mx-auto flex items-center justify-center text-2xl"
-              style={{ backgroundColor: "#F59E0B20" }}
-            >
-              💬
-            </div>
-            <h3 className="font-semibold">Name what&apos;s coming up</h3>
-            <p className="text-sm text-muted-foreground">
-              Pick from common patterns — arguing about the same thing,
-              feeling like you&apos;re carrying more — or describe your own.
-            </p>
-          </div>
+        <aside className="flex min-w-0 flex-[1_1_300px] flex-col gap-4">
+          <ol className="flex flex-col rounded-md border border-line bg-surface">
+            {STEPS.map((step, i) => (
+              <li key={step.title} className="flex gap-4 border-b border-line p-5 last:border-b-0">
+                <span className="pt-1 font-mono text-xs tracking-[0.12em] text-accent">
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <span className="flex flex-col gap-1.5">
+                  <span className="font-display text-2xl leading-none font-bold uppercase">{step.title}</span>
+                  <span className="text-[15px] leading-snug text-muted">{step.body}</span>
+                </span>
+              </li>
+            ))}
+          </ol>
 
-          <div className="rounded-2xl border bg-card p-6 text-center space-y-3">
-            <div
-              className="w-12 h-12 rounded-full mx-auto flex items-center justify-center text-2xl"
-              style={{ backgroundColor: "#14B8A620" }}
-            >
-              👀
-            </div>
-            <h3 className="font-semibold">See it side by side</h3>
-            <p className="text-sm text-muted-foreground">
-              Each of you answers in private. Then you compare and see
-              where you actually agree, disagree, or are dropping the ball.
-            </p>
-          </div>
-
-          <div className="rounded-2xl border bg-card p-6 text-center space-y-3">
-            <div
-              className="w-12 h-12 rounded-full mx-auto flex items-center justify-center text-2xl"
-              style={{ backgroundColor: "#A78BFA20" }}
-            >
-              🚀
-            </div>
-            <h3 className="font-semibold">Walk away with one step</h3>
-            <p className="text-sm text-muted-foreground">
-              Pick a small action and a way to bring it up — then check
-              back in a few days to see how it&apos;s going.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <footer className="border-t py-6 text-center text-sm text-muted-foreground">
-        <p>Who&apos;s Got The Ball? — Conversations that matter.</p>
-      </footer>
-    </main>
+          {/* Wired up in the next build step (entering both names). */}
+          <button
+            type="button"
+            disabled
+            className="flex min-h-16 items-center justify-between rounded-md bg-accent px-5.5 font-display text-2xl font-extrabold text-on-accent uppercase disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Start
+            <span aria-hidden="true">→</span>
+          </button>
+          <p className="font-mono text-[11px] tracking-[0.12em] text-muted">
+            NOTHING IS SAVED OR SHARED. IT ALL STAYS ON THIS PHONE.
+          </p>
+        </aside>
+      </main>
+    </div>
   );
 }
