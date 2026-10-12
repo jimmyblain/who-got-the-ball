@@ -17,6 +17,14 @@ The app is being rebuilt from scratch, feature by feature, as a **one-phone** ex
 
 The previous two-account app (Supabase auth, partner linking, sessions, check-ins) is preserved on the `archive/v1-two-account` branch. Don't reintroduce Supabase, auth or partner linking unless asked; when two-phone play returns it will be rebuilt on top of this MVP.
 
+## Key files
+
+- `components/session-app.tsx`: the whole session runs on one page with `useReducer`. Steps are in-memory state, not routes, so the browser back button can't step into the other person's answers.
+- `lib/session.ts`: the session state machine (`sessionReducer`). Guards live here, e.g. "next" needs an answer and "back" never crosses into the previous person's turn.
+- `components/screens/`: one component per step (start, names, topic, pass, turn, reveal).
+- `components/ui.tsx`: shared Dusk primitives (buttons, option rows, tags, the two-column `Screen`).
+- `lib/content.ts`: categories, scenarios, questions and answer options.
+
 ## Commands
 
 ```bash
