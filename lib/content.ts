@@ -75,8 +75,8 @@ export function whoOptions(names: { a: string; b: string }): { key: WhoKey; labe
   return [
     { key: "player_a", label: names.a },
     { key: "player_b", label: names.b },
-    { key: "both_dropped", label: "Both of us let it drop" },
-    { key: "not_sure", label: "Not sure" },
+    { key: "both_dropped", label: "We both let it drop" },
+    { key: "not_sure", label: "I'm not sure" },
   ];
 }
 

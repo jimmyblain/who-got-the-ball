@@ -34,11 +34,12 @@ Next.js 16 (App Router) + React 19 + Tailwind CSS 4 + TypeScript. Dependency ver
 
 ## Design
 
-Visual direction is **Dusk**: deep plum background with a soft coral accent. Tokens are defined in `app/globals.css` under `@theme` (`bg`, `surface`, `line`, `ink`, `muted`, `accent`, `on-accent`), so use classes like `bg-surface`, `text-muted`, `border-line`, `bg-accent`.
+Visual direction is **Dusk**: deep plum background with a soft coral accent. Tokens are defined in `app/globals.css` under `@theme` (`bg`, `surface`, `line`, `ink`, `muted`, `accent`, `on-accent`, `common`), so use classes like `bg-surface`, `text-muted`, `border-line`, `bg-accent`.
 
 - Type: Barlow Condensed for uppercase display headlines (`font-display`), Barlow for body (`font-sans`), IBM Plex Mono for small uppercase labels (`font-mono`). Loaded with `next/font` in `app/layout.tsx`.
 - Every screen must work on a desktop browser and on a phone held upright.
 - Hairline borders (`border-line`), 6px radius (`rounded-md`), no gradients or shadows.
+- Per-screen layout, components and copy follow the Dusk design handoff ("Dusk design handoff (one-phone MVP)" in the project files, with a playable reference of every screen).
 
 ## Conventions
 

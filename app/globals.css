@@ -9,6 +9,7 @@
   --color-muted: #aba5b8;
   --color-accent: #ff9473;
   --color-on-accent: #1b1a24;
+  --color-common: #a6dcbc;
 
   --font-sans: var(--font-barlow), ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-barlow-condensed), ui-sans-serif, system-ui, sans-serif;
