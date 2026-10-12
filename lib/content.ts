@@ -98,6 +98,41 @@ export const EXPECTATION_OPTIONS = [
   { key: "meet_halfway", label: "Meet me halfway" },
 ] as const;
 
+export type WhyKey = (typeof WHY_OPTIONS)[number]["key"];
+export type ExpectationKey = (typeof EXPECTATION_OPTIONS)[number]["key"];
+
+export type Answers = {
+  who?: WhoKey;
+  why?: WhyKey;
+  expectation?: ExpectationKey;
+};
+
+export type QuestionKey = keyof Answers;
+
+/** The three questions each person answers, in order. */
+export const QUESTIONS: { key: QuestionKey; title: string; revealLabel: string }[] = [
+  { key: "who", title: "Who's holding this right now?", revealLabel: "Who" },
+  { key: "why", title: "Why does it feel that way?", revealLabel: "Why" },
+  { key: "expectation", title: "What would help most?", revealLabel: "Hoping for" },
+];
+
+export function questionOptions(
+  key: QuestionKey,
+  names: { a: string; b: string },
+): readonly { key: string; label: string }[] {
+  if (key === "who") return whoOptions(names);
+  if (key === "why") return WHY_OPTIONS;
+  return EXPECTATION_OPTIONS;
+}
+
+export function findCategory(slug: string | null): Category | undefined {
+  return CATEGORIES.find((c) => c.slug === slug);
+}
+
+export function findScenario(id: string | null): Scenario | undefined {
+  return CATEGORIES.flatMap((c) => c.scenarios).find((s) => s.id === id);
+}
+
 /** Conversation starters shown with the reveal. */
 export const CONVERSATION_STARTERS = [
   "I think I've been feeling like you were putting the ball on me, and I don't really know how to respond.",
