@@ -2,13 +2,13 @@ import { Kicker, PrimaryButton } from "@/components/ui";
 import { findScenario } from "@/lib/content";
 import type { ScreenProps } from "./types";
 
-/** Shown before each turn so the right person is holding the phone. */
+/** Shown before each turn so the right person has the device. */
 export function PassScreen({ state, dispatch }: ScreenProps) {
   const { a, b } = state.names;
   const first = state.turn === 0;
   const scenario = findScenario(state.scenarioId);
   // Names go in the giant title, so long ones get a smaller size to avoid
-  // breaking mid-word on narrow phones.
+  // breaking mid-word on narrow screens.
   const longNames = Math.max(a.length, b.length) > 10;
 
   return (
@@ -23,13 +23,13 @@ export function PassScreen({ state, dispatch }: ScreenProps) {
           longNames ? "text-[clamp(40px,8vw,120px)]" : "text-[clamp(64px,10vw,148px)]"
         }`}
       >
-        {first ? `${a} goes first.` : "Pass the phone"}
+        {first ? `${a} goes first.` : "Hand it over"}
         <br />
         <span className="text-accent">{first ? `${b}, look away.` : `to ${b}.`}</span>
       </h1>
       <p className="max-w-[46ch] text-lg leading-normal text-muted">
         {first
-          ? `Hand the phone to ${a}. Three quick questions, then it comes back to ${b} for the same three.`
+          ? `${a} answers three quick questions, then it's ${b}'s turn for the same three.`
           : `${b}, you'll answer the same three questions. ${a}'s answers stay hidden until you're both done.`}
       </p>
       <PrimaryButton className="min-h-16 self-start text-[26px]" onClick={() => dispatch({ type: "beginTurn" })}>

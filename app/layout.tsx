@@ -23,7 +23,7 @@ const plexMono = IBM_Plex_Mono({
 export const metadata: Metadata = {
   title: "Who's Got The Ball?",
   description:
-    "A guided conversation for two people on one phone: answer on your own, then see both sides together.",
+    "A guided conversation for two, taking turns on one device: answer on your own, then see both sides together.",
 };
 
 export const viewport: Viewport = {

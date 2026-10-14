@@ -4,7 +4,7 @@ function cx(...classes: (string | false | undefined)[]) {
   return classes.filter(Boolean).join(" ");
 }
 
-/** Two columns that wrap: side by side on desktop, stacked on a phone. */
+/** Two columns that wrap: side by side on desktop, stacked on narrow screens. */
 export function Screen({
   children,
   align = "start",
