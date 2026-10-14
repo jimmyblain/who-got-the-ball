@@ -19,7 +19,7 @@ const SCREENS = {
 };
 
 /**
- * The whole one-phone session runs here, on a single page. Moving between
+ * The whole session runs here, on a single page. Moving between
  * steps changes in-memory state only, so the browser's back button leaves the
  * app rather than stepping into the other person's answers.
  */
@@ -53,7 +53,7 @@ export function SessionApp() {
           <button
             type="button"
             onClick={() => {
-              if (state.step === "names" || window.confirm("Start over? Everything on this phone will be cleared.")) {
+              if (state.step === "names" || window.confirm("Start over? Your names and answers will be cleared.")) {
                 dispatch({ type: "reset" });
               }
             }}

@@ -1,7 +1,7 @@
 import { CATEGORIES, QUESTIONS, type Answers, type QuestionKey } from "@/lib/content";
 
 /**
- * One-phone session state. Everything lives in memory on this device;
+ * Session state for two people taking turns on one device. Everything lives in memory on this device;
  * nothing is sent anywhere.
  *
  * Flow: start → names → topic → pass (person one) → turn → pass (person two)

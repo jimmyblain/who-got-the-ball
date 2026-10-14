@@ -21,7 +21,7 @@ export function StartScreen({ dispatch }: ScreenProps) {
           the <span className="text-accent">ball?</span>
         </h1>
         <p className="max-w-[42ch] text-[19px] leading-normal text-muted">
-          A ten-minute conversation for two, on one phone. Pick something that&apos;s been piling up,
+          A ten-minute conversation for two, taking turns on one device. Pick something that&apos;s been piling up,
           answer on your own, then look at it together.
         </p>
       </section>

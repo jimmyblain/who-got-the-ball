@@ -16,7 +16,7 @@ export function NamesScreen({ state, dispatch }: ScreenProps) {
         <Kicker>Step 1 · Who&apos;s playing</Kicker>
         <Title>Who&apos;s at the table?</Title>
         <p className="max-w-[40ch] text-[17px] leading-normal text-muted">
-          First names are enough. They&apos;re only used on this phone, to show whose turn it is and who
+          First names are enough. They&apos;re only used here, to show whose turn it is and who
           said what.
         </p>
       </Column>

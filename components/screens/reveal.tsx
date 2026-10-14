@@ -80,7 +80,7 @@ export function RevealScreen({ state, dispatch }: ScreenProps) {
       <aside className="flex min-w-0 flex-[1_1_320px] flex-col gap-4">
         <TalkItThrough />
         <PrimaryButton onClick={() => dispatch({ type: "anotherTopic" })}>Talk about something else</PrimaryButton>
-        <SecondaryButton onClick={() => dispatch({ type: "reset" })}>We&apos;re done, clear this phone</SecondaryButton>
+        <SecondaryButton onClick={() => dispatch({ type: "reset" })}>We&apos;re done, clear our answers</SecondaryButton>
       </aside>
     </main>
   );

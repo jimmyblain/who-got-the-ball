@@ -1,7 +1,7 @@
 /**
  * Everything the quiz asks, in one place.
  *
- * The MVP runs on one phone with no accounts or database, so content ships
+ * The MVP runs on one shared device with no accounts or database, so content ships
  * with the code. The shapes mirror the old `categories` and `scenarios`
  * tables so this can move back into the database when accounts return.
  *
@@ -65,7 +65,7 @@ export const CATEGORIES: Category[] = [
 ];
 
 /**
- * Who has the ball. On one phone both people answer from the same screen, so
+ * Who has the ball. On one shared device both people answer from the same screen, so
  * the options are the two names rather than "Me" / "You". The keys point at a
  * player slot, which means two answers can be compared directly.
  */
