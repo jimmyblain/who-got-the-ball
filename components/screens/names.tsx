@@ -1,4 +1,4 @@
-import { Column, Kicker, PrimaryButton, Screen, Title } from "@/components/ui";
+import { Column, PrimaryButton, Screen, Title } from "@/components/ui";
 import { MAX_NAME_LENGTH, namesReady } from "@/lib/session";
 import type { ScreenProps } from "./types";
 
@@ -13,7 +13,6 @@ export function NamesScreen({ state, dispatch }: ScreenProps) {
   return (
     <Screen>
       <Column className="gap-4.5">
-        <Kicker>Step 1 · Who&apos;s playing</Kicker>
         <Title>Who&apos;s at the table?</Title>
         <p className="max-w-[40ch] text-[17px] leading-normal text-muted">
           First names are enough. They&apos;re only used here, to show whose turn it is and who

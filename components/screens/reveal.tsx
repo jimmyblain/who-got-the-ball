@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Kicker, PrimaryButton, SecondaryButton, Tag } from "@/components/ui";
-import { CONVERSATION_STARTERS, QUESTIONS, findCategory, findScenario, questionOptions } from "@/lib/content";
+import { CONVERSATION_STARTERS, QUESTIONS, findScenario, questionOptions } from "@/lib/content";
 import type { ScreenProps } from "./types";
 
 const TIMER_SECONDS = 120;
@@ -23,9 +23,8 @@ export function RevealScreen({ state, dispatch }: ScreenProps) {
     <main className="mx-auto flex w-full max-w-[1200px] flex-wrap items-start gap-[clamp(28px,4vw,56px)] px-[clamp(20px,4vw,56px)] pt-[clamp(28px,5vw,64px)] pb-10">
       <section className="flex min-w-0 flex-[999_1_540px] flex-col">
         <span className="mb-3.5">
-          <Kicker>
-            {findCategory(state.categorySlug)?.name} · {findScenario(state.scenarioId)?.text}
-          </Kicker>
+          {/* Keeps the topic in view while the two of you talk it through. */}
+          <Kicker>{findScenario(state.scenarioId)?.text}</Kicker>
         </span>
         <h1
           tabIndex={-1}

@@ -1,4 +1,4 @@
-import { Column, Kicker, ListOption, PrimaryButton, Screen, Title } from "@/components/ui";
+import { Column, ListOption, PrimaryButton, Screen, Title } from "@/components/ui";
 import { CATEGORIES, findCategory } from "@/lib/content";
 import type { ScreenProps } from "./types";
 
@@ -8,7 +8,6 @@ export function TopicScreen({ state, dispatch }: ScreenProps) {
   return (
     <Screen>
       <Column className="gap-4.5">
-        <Kicker>Step 2 · Decide together</Kicker>
         <Title>What&apos;s been piling up?</Title>
         <div className="flex flex-col gap-2">
           {CATEGORIES.map((c) => {

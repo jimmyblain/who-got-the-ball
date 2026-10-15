@@ -47,6 +47,7 @@ Visual direction is **Dusk**: deep plum background with a soft coral accent. Tok
 - Type: Barlow Condensed for uppercase display headlines (`font-display`), Barlow for body (`font-sans`), IBM Plex Mono for small uppercase labels (`font-mono`). Loaded with `next/font` in `app/layout.tsx`.
 - Every screen must work on a desktop browser and on a phone held upright.
 - Copy is device-neutral: people may be on a phone, tablet or computer, so never say "phone", "tap" or "swipe" in the UI. Say "device", "hand it over", "choose" instead.
+- No decorative eyebrow labels (small mono text above a title, like "STEP 1 · …" or "YOU PICKED: …"). Use `Kicker` only when it carries information the title needs, e.g. the topic a question refers to.
 - Hairline borders (`border-line`), 6px radius (`rounded-md`), no gradients or shadows.
 - Per-screen layout, components and copy follow the Dusk design handoff ("Dusk design handoff (one-phone MVP)" in the project files, with a playable reference of every screen).
 
