@@ -41,17 +41,12 @@ export function Column({ children, wide, className }: { children: ReactNode; wid
   );
 }
 
-export function Kicker({ children, tone = "muted" }: { children: ReactNode; tone?: "muted" | "common" }) {
-  return (
-    <span
-      className={cx(
-        "font-mono text-xs tracking-[0.12em] uppercase",
-        tone === "common" ? "text-common" : "text-muted",
-      )}
-    >
-      {children}
-    </span>
-  );
+/**
+ * A small label above a title. Use only when it adds something the title
+ * can't, e.g. naming the topic a question refers to. Not for decoration.
+ */
+export function Kicker({ children }: { children: ReactNode }) {
+  return <span className="font-mono text-xs tracking-[0.12em] text-muted uppercase">{children}</span>;
 }
 
 export function Title({ children, size = "page" }: { children: ReactNode; size?: "page" | "hero" }) {

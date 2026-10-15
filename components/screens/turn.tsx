@@ -1,5 +1,5 @@
 import { Column, Kicker, OptionRow, PrimaryButton, Screen, SecondaryButton, Title } from "@/components/ui";
-import { QUESTIONS, findCategory, findScenario, questionOptions } from "@/lib/content";
+import { QUESTIONS, findScenario, questionOptions } from "@/lib/content";
 import { currentAnswer } from "@/lib/session";
 import type { ScreenProps } from "./types";
 
@@ -30,9 +30,8 @@ export function TurnScreen({ state, dispatch }: ScreenProps) {
 
       <Screen>
         <Column className="gap-4">
-          <Kicker>
-            {findCategory(state.categorySlug)?.name} · {findScenario(state.scenarioId)?.text}
-          </Kicker>
+          {/* The question says "this", so name the topic being answered. */}
+          <Kicker>{findScenario(state.scenarioId)?.text}</Kicker>
           <Title>{q.title}</Title>
           <p className="max-w-[40ch] text-base leading-normal text-muted">
             {other} won&apos;t see this until the reveal. Go with your gut.
